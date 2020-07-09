@@ -14,7 +14,7 @@ docker-builder:
 	docker images | grep ospagent-builder || docker build -t ospagent-builder ./builder
 
 build-in-docker: clean docker-builder
-	docker run -v `pwd`:/gopath/src/github.com/openspacee/ospagent/ ospagent-builder:latest bash -c 'cd /gopath/src/openspacee/ospagent && make build-binary'
+	docker run -v `pwd`:/gopath/src/github.com/openspacee/ospagent/ ospagent-builder:latest bash -c 'cd /gopath/src/github.com/openspacee/ospagent && make build-binary'
 
 make-image:
 	docker build -t ${REGISTRY}/ospagent:${TAG} .
