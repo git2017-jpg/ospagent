@@ -1,6 +1,9 @@
 package utils
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/openspacee/ospagent/pkg/utils/code"
+)
 
 type Response struct {
 	Code string      `json:"code"`
@@ -15,4 +18,8 @@ type TResponse struct {
 
 func (resp *TResponse) Serializer() ([]byte, error) {
 	return json.Marshal(resp)
+}
+
+func (r *Response) IsSuccess() bool {
+	return r.Code == code.Success
 }

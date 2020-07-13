@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"github.com/openspacee/ospagent/pkg/kubernetes"
 	"github.com/openspacee/ospagent/pkg/utils"
+	"github.com/openspacee/ospagent/pkg/utils/code"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/yaml"
 	"strings"
 )
 
@@ -20,9 +22,10 @@ func NewPod(kubeClient *kubernetes.KubeClient) *Pod {
 	}
 }
 
-type listRequestParams struct {
+type PodQueryParams struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
+	Output    string `json:"output"`
 }
 
 type BuildContainer struct {
@@ -99,20 +102,43 @@ func (p *Pod) ToBuildPod(pod *v1.Pod) *BuildPod {
 }
 
 func (p *Pod) List(requestParams interface{}) *utils.Response {
-	listParams := &listRequestParams{}
-	json.Unmarshal(requestParams.([]byte), listParams)
-	podList, err := p.KubeClient.PodLister().Pods(listParams.Namespace).List(labels.Everything())
+	queryParams := &PodQueryParams{}
+	json.Unmarshal(requestParams.([]byte), queryParams)
+	podList, err := p.KubeClient.PodLister().Pods(queryParams.Namespace).List(labels.Everything())
 	if err != nil {
 		return &utils.Response{
-			Code: "ListError",
+			Code: code.ListError,
 			Msg:  err.Error(),
 		}
 	}
 	var podRes []*BuildPod
 	for _, pod := range podList {
-		if listParams.Name == "" || strings.Contains(pod.ObjectMeta.Name, listParams.Name) {
+		if queryParams.Name == "" || strings.Contains(pod.ObjectMeta.Name, queryParams.Name) {
 			podRes = append(podRes, p.ToBuildPod(pod))
 		}
 	}
-	return &utils.Response{Code: "Success", Msg: "Success", Data: podRes}
+	return &utils.Response{Code: code.Success, Msg: "Success", Data: podRes}
+}
+
+func (p *Pod) Get(requestParams interface{}) *utils.Response {
+	queryParams := &PodQueryParams{}
+	json.Unmarshal(requestParams.([]byte), queryParams)
+	if queryParams.Name == "" {
+		return &utils.Response{Code: code.ParamsError, Msg: "Pod name is blank"}
+	}
+	if queryParams.Namespace == "" {
+		return &utils.Response{Code: code.ParamsError, Msg: "Namespace is blank"}
+	}
+	pod, err := p.KubeClient.PodLister().Pods(queryParams.Namespace).Get(queryParams.Name)
+	if err != nil {
+		return &utils.Response{Code: code.GetError, Msg: err.Error()}
+	}
+	if queryParams.Output == "yaml" {
+		podYaml, err := yaml.Marshal(pod)
+		if err != nil {
+			return &utils.Response{Code: code.MarshalError, Msg: err.Error()}
+		}
+		return &utils.Response{Code: code.Success, Msg: "Success", Data: string(podYaml)}
+	}
+	return &utils.Response{Code: code.Success, Msg: "Success", Data: pod}
 }

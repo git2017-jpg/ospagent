@@ -8,6 +8,7 @@ import (
 
 const (
 	LIST = "list"
+	GET  = "get"
 )
 
 type Handler func(interface{}) *utils.Response
@@ -25,6 +26,7 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient) *ResourceActions {
 	pod := resource.NewPod(kubeClient)
 	podActions := ActionHandler{
 		LIST: pod.List,
+		GET:  pod.Get,
 	}
 	actionHandlers["pod"] = podActions
 	return &ResourceActions{
