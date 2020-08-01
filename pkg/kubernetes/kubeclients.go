@@ -10,6 +10,7 @@ import (
 type KubeClient struct {
 	ClientSet kube_client.Interface
 	ListRegistry
+	InformerRegistry
 }
 
 func getKubeConfig(kubeConfigFile string) *rest.Config {
@@ -39,8 +40,13 @@ func createKubeClient(kubeConfigFile string) kube_client.Interface {
 func NewKubeClient(kubeConfigFile string) *KubeClient {
 	kubeClient := createKubeClient(kubeConfigFile)
 	listRegistry := NewListRegistry(kubeClient, nil)
+	informerRegistry, err := NewInformerRegistry(kubeClient, nil)
+	if err != nil {
+		panic(err.Error())
+	}
 	return &KubeClient{
-		ClientSet:    kubeClient,
-		ListRegistry: listRegistry,
+		ClientSet:        kubeClient,
+		ListRegistry:     listRegistry,
+		InformerRegistry: informerRegistry,
 	}
 }

@@ -36,7 +36,8 @@ func NewAgentConfig(opt *config.AgentOptions) (*AgentConfig, error) {
 		//nil,
 		kubeClient,
 		agentConfig.RequestChan,
-		agentConfig.ResponseChan)
+		agentConfig.ResponseChan,
+		agentConfig.WebSocket.SendResponse)
 
 	return agentConfig, nil
 }

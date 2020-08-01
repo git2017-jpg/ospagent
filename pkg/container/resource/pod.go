@@ -6,26 +6,38 @@ import (
 	"github.com/openspacee/ospagent/pkg/kubernetes"
 	"github.com/openspacee/ospagent/pkg/utils"
 	"github.com/openspacee/ospagent/pkg/utils/code"
+	"github.com/openspacee/ospagent/pkg/websocket"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
 	"strings"
 )
 
 type Pod struct {
 	*kubernetes.KubeClient
+	websocket.SendResponse
+	watch *WatchResource
 }
 
-func NewPod(kubeClient *kubernetes.KubeClient) *Pod {
-	return &Pod{
-		KubeClient: kubeClient,
+func NewPod(kubeClient *kubernetes.KubeClient, sendResponse websocket.SendResponse, watch *WatchResource) *Pod {
+	pod := &Pod{
+		KubeClient:   kubeClient,
+		SendResponse: sendResponse,
+		watch:        watch,
 	}
+	pod.DoWatch()
+	return pod
 }
 
 type PodQueryParams struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
 	Output    string `json:"output"`
+}
+
+type WatchPodParams struct {
+	UID string `json:"uid"`
 }
 
 type BuildContainer struct {
@@ -36,16 +48,18 @@ type BuildContainer struct {
 }
 
 type BuildPod struct {
-	Name           string            `json:"name"`
-	Namespace      string            `json:"namespace"`
-	Containers     []*BuildContainer `json:"containers"`
-	InitContainers []*BuildContainer `json:"init_containers"`
-	Controlled     string            `json:"controlled"`
-	Qos            string            `json:"qos"`
-	Created        string            `json:"created"`
-	Status         string            `json:"status"`
-	Ip             string            `json:"ip"`
-	NodeName       string            `json:"node_name"`
+	UID             string            `json:"uid"`
+	Name            string            `json:"name"`
+	Namespace       string            `json:"namespace"`
+	Containers      []*BuildContainer `json:"containers"`
+	InitContainers  []*BuildContainer `json:"init_containers"`
+	Controlled      string            `json:"controlled"`
+	Qos             string            `json:"qos"`
+	Created         string            `json:"created"`
+	Status          string            `json:"status"`
+	Ip              string            `json:"ip"`
+	NodeName        string            `json:"node_name"`
+	ResourceVersion string            `json:"resource_version"`
 }
 
 func (p *Pod) ToBuildContainer(statuses []v1.ContainerStatus, container *v1.Container) *BuildContainer {
@@ -88,23 +102,25 @@ func (p *Pod) ToBuildPod(pod *v1.Pod) *BuildPod {
 		controlled = pod.ObjectMeta.OwnerReferences[0].Kind
 	}
 	return &BuildPod{
-		Name:           pod.ObjectMeta.Name,
-		Namespace:      pod.ObjectMeta.Namespace,
-		Containers:     containers,
-		InitContainers: initContainers,
-		Controlled:     controlled,
-		Qos:            string(pod.Status.QOSClass),
-		Status:         string(pod.Status.Phase),
-		Ip:             pod.Status.PodIP,
-		Created:        fmt.Sprint(pod.ObjectMeta.CreationTimestamp),
-		NodeName:       pod.Spec.NodeName,
+		UID:             string(pod.UID),
+		Name:            pod.Name,
+		Namespace:       pod.Namespace,
+		Containers:      containers,
+		InitContainers:  initContainers,
+		Controlled:      controlled,
+		Qos:             string(pod.Status.QOSClass),
+		Status:          string(pod.Status.Phase),
+		Ip:              pod.Status.PodIP,
+		Created:         fmt.Sprint(pod.CreationTimestamp),
+		NodeName:        pod.Spec.NodeName,
+		ResourceVersion: pod.ResourceVersion,
 	}
 }
 
 func (p *Pod) List(requestParams interface{}) *utils.Response {
 	queryParams := &PodQueryParams{}
 	json.Unmarshal(requestParams.([]byte), queryParams)
-	podList, err := p.KubeClient.PodLister().Pods(queryParams.Namespace).List(labels.Everything())
+	podList, err := p.KubeClient.InformerRegistry.PodInformer().Lister().List(labels.Everything())
 	if err != nil {
 		return &utils.Response{
 			Code: code.ListError,
@@ -141,4 +157,13 @@ func (p *Pod) Get(requestParams interface{}) *utils.Response {
 		return &utils.Response{Code: code.Success, Msg: "Success", Data: string(podYaml)}
 	}
 	return &utils.Response{Code: code.Success, Msg: "Success", Data: pod}
+}
+
+func (p *Pod) DoWatch() {
+	podInformer := p.KubeClient.PodInformer().Informer()
+	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    p.watch.WatchAdd(utils.WatchPod),
+		UpdateFunc: p.watch.WatchUpdate(utils.WatchPod),
+		DeleteFunc: p.watch.WatchDelete(utils.WatchPod),
+	})
 }

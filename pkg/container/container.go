@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/openspacee/ospagent/pkg/kubernetes"
 	"github.com/openspacee/ospagent/pkg/utils"
+	"github.com/openspacee/ospagent/pkg/websocket"
 	"k8s.io/klog"
 )
 
@@ -13,19 +14,22 @@ type Container struct {
 	RequestChan  chan *utils.Request
 	ResponseChan chan *utils.TResponse
 	*ResourceActions
+	websocket.SendResponse
 }
 
 func NewContainer(
 	kubeClient *kubernetes.KubeClient,
 	requestChan chan *utils.Request,
-	responseChan chan *utils.TResponse) *Container {
+	responseChan chan *utils.TResponse,
+	sendResponse websocket.SendResponse) *Container {
 
-	resourceActions := NewResourceActions(kubeClient)
+	resourceActions := NewResourceActions(kubeClient, sendResponse)
 	return &Container{
 		KubeClient:      kubeClient,
 		RequestChan:     requestChan,
 		ResponseChan:    responseChan,
 		ResourceActions: resourceActions,
+		SendResponse:    sendResponse,
 	}
 }
 
@@ -42,8 +46,9 @@ func (c *Container) Run() {
 
 func (c *Container) handleRequest(request *utils.Request) {
 	resp := c.doRequest(request)
-	tResp := &utils.TResponse{RequestId: request.RequestId, Data: resp}
-	c.ResponseChan <- tResp
+	//tResp := &utils.TResponse{RequestId: request.RequestId, Data: resp}
+	//c.ResponseChan <- tResp
+	c.SendResponse(resp, request.RequestId, utils.RequestType)
 }
 
 func (c *Container) doRequest(request *utils.Request) (resp *utils.Response) {

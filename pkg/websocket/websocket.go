@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+type SendResponse func(interface{}, string, string)
+
 type WebSocket struct {
 	Url          *url.URL
 	Token        string
@@ -105,5 +107,12 @@ func (ws *WebSocket) WriteResponse() {
 				klog.V(1).Infof("write response %s success", string(respMsg))
 			}
 		}
+	}
+}
+
+func (ws *WebSocket) SendResponse(resp interface{}, requestId, resType string) {
+	if ws.Conn != nil {
+		tResp := &utils.TResponse{RequestId: requestId, Data: resp, ResType: resType}
+		ws.ResponseChan <- tResp
 	}
 }
