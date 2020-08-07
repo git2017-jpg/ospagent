@@ -12,11 +12,13 @@ import (
 type InformerRegistry interface {
 	PodInformer() v1.PodInformer
 	NamespaceInformer() v1.NamespaceInformer
+	NodeInformer() v1.NodeInformer
 }
 
 type InformerRegistryImpl struct {
 	podInformer       v1.PodInformer
 	nameSpaceInformer v1.NamespaceInformer
+	nodeInformer      v1.NodeInformer
 }
 
 func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}) (InformerRegistry, error) {
@@ -31,10 +33,12 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 	if err != nil {
 		return nil, err
 	}
+	nodeInformer, err := NewNodeInformer(factory, stopCh)
 
 	return &InformerRegistryImpl{
 		podInformer:       podInformer,
 		nameSpaceInformer: nsInformer,
+		nodeInformer:      nodeInformer,
 	}, nil
 }
 
@@ -68,10 +72,27 @@ func NewNamespaceInformer(factory informers.SharedInformerFactory, stopCh <-chan
 	return nsInformer, nil
 }
 
+func NewNodeInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (v1.NodeInformer, error) {
+	nodeInformer := factory.Core().V1().Nodes()
+	informer := nodeInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return nodeInformer, nil
+}
+
 func (r *InformerRegistryImpl) PodInformer() v1.PodInformer {
 	return r.podInformer
 }
 
 func (r *InformerRegistryImpl) NamespaceInformer() v1.NamespaceInformer {
 	return r.nameSpaceInformer
+}
+
+func (r *InformerRegistryImpl) NodeInformer() v1.NodeInformer {
+	return r.nodeInformer
 }

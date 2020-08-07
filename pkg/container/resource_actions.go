@@ -43,6 +43,12 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 	}
 	actionHandlers["namespace"] = nsActions
 
+	node := resource.NewNode(kubeClient, sendResponse)
+	nodeActions := ActionHandler{
+		LIST: node.List,
+	}
+	actionHandlers["node"] = nodeActions
+
 	return &ResourceActions{
 		KubeClient:            kubeClient,
 		ResourceActionHandler: actionHandlers,
