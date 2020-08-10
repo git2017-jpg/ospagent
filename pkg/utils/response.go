@@ -8,6 +8,8 @@ import (
 const (
 	RequestType = "request"
 	WatchType   = "watch"
+	ExecType    = "exec"
+	LogType     = "log"
 
 	AddEvent    = "add"
 	UpdateEvent = "update"

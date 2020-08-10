@@ -8,8 +8,12 @@ import (
 )
 
 const (
-	LIST = "list"
-	GET  = "get"
+	LIST     = "list"
+	GET      = "get"
+	EXEC     = "exec"
+	STDIN    = "stdin"
+	OPENLOG  = "openLog"
+	CLOSELOG = "closeLog"
 )
 
 type Handler func(interface{}) *utils.Response
@@ -32,8 +36,12 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 
 	pod := resource.NewPod(kubeClient, sendResponse, watch)
 	podActions := ActionHandler{
-		LIST: pod.List,
-		GET:  pod.Get,
+		LIST:     pod.List,
+		GET:      pod.Get,
+		EXEC:     pod.Exec,
+		STDIN:    pod.ExecStdIn,
+		OPENLOG:  pod.OpenLog,
+		CLOSELOG: pod.CloseLog,
 	}
 	actionHandlers["pod"] = podActions
 
