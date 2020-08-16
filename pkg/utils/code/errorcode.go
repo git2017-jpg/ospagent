@@ -6,4 +6,7 @@ const (
 	GetError     = "GetError"
 	ParamsError  = "ParamsError"
 	MarshalError = "MarshalError"
+	DeleteError  = "DeleteError"
+	UpdateError  = "UpdateError"
+	EncodeError  = "EncodeError"
 )

@@ -11,32 +11,47 @@ import (
 	"io"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog"
-	"sigs.k8s.io/yaml"
 	"strings"
 )
 
 type Pod struct {
-	*kubernetes.KubeClient
 	websocket.SendResponse
 	watch        *WatchResource
 	execSessions map[string]*streamHandler
 	logSessions  map[string]*logHandler
+	*DynamicResource
 }
 
 func NewPod(kubeClient *kubernetes.KubeClient, sendResponse websocket.SendResponse, watch *WatchResource) *Pod {
 	pod := &Pod{
-		KubeClient:   kubeClient,
 		SendResponse: sendResponse,
 		watch:        watch,
 		execSessions: make(map[string]*streamHandler),
 		logSessions:  make(map[string]*logHandler),
+		DynamicResource: NewDynamicResource(kubeClient, &schema.GroupVersionResource{
+			Group:    "",
+			Version:  "v1",
+			Resource: "pods",
+		}),
 	}
 	pod.DoWatch()
 	return pod
+}
+
+func (p *Pod) DoWatch() {
+	podInformer := p.KubeClient.PodInformer().Informer()
+	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    p.watch.WatchAdd(utils.WatchPod),
+		UpdateFunc: p.watch.WatchUpdate(utils.WatchPod),
+		DeleteFunc: p.watch.WatchDelete(utils.WatchPod),
+	})
 }
 
 type PodQueryParams struct {
@@ -45,8 +60,9 @@ type PodQueryParams struct {
 	Output    string `json:"output"`
 }
 
-type WatchPodParams struct {
-	UID string `json:"uid"`
+type DeletePodParams struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
 }
 
 type BuildContainer struct {
@@ -159,22 +175,48 @@ func (p *Pod) Get(requestParams interface{}) *utils.Response {
 		return &utils.Response{Code: code.GetError, Msg: err.Error()}
 	}
 	if queryParams.Output == "yaml" {
-		podYaml, err := yaml.Marshal(pod)
-		if err != nil {
-			return &utils.Response{Code: code.MarshalError, Msg: err.Error()}
+		//e := k8sjson.NewSerializerWithOptions(
+		//	k8sjson.DefaultMetaFactory,
+		//	nil,
+		//	nil,
+		//	k8sjson.SerializerOptions{
+		//		//Yaml:   true,
+		//		Pretty: true,
+		//		Strict: true,},
+		//)
+		//
+		////err := e.EncodeToStream(ns, os.Stdout)
+		//buf := bytes.NewBufferString("")
+		//err := e.Encode(pod, buf)
+		//if err != nil {
+		//	return &utils.Response{Code: code.EncodeError, Msg: err.Error()}
+		//}
+		//podYaml, err := yaml.Marshal(pod)
+		//if err != nil {
+		//	return &utils.Response{Code: code.MarshalError, Msg: err.Error()}
+		//}
+		//a := runtime.Object(pod)
+		//buf, _ := json.Marshal(pod)
+		const mediaType = runtime.ContentTypeYAML
+		rscheme := runtime.NewScheme()
+		v1.AddToScheme(rscheme)
+		codecs := serializer.NewCodecFactory(rscheme)
+		info, ok := runtime.SerializerInfoForMediaType(codecs.SupportedMediaTypes(), mediaType)
+		if !ok {
+			return &utils.Response{Code: code.Success, Msg: fmt.Sprintf("unsupported media type %q", mediaType)}
 		}
-		return &utils.Response{Code: code.Success, Msg: "Success", Data: string(podYaml)}
+
+		encoder := codecs.EncoderForVersion(info.Serializer, p.GroupVersion())
+		//klog.Info(a)
+		d, e := runtime.Encode(encoder, pod)
+		if e != nil {
+			klog.Error(e)
+			return &utils.Response{Code: code.Success, Msg: e.Error()}
+		}
+		klog.Info(d)
+		return &utils.Response{Code: code.Success, Msg: "Success", Data: string(d)}
 	}
 	return &utils.Response{Code: code.Success, Msg: "Success", Data: pod}
-}
-
-func (p *Pod) DoWatch() {
-	podInformer := p.KubeClient.PodInformer().Informer()
-	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    p.watch.WatchAdd(utils.WatchPod),
-		UpdateFunc: p.watch.WatchUpdate(utils.WatchPod),
-		DeleteFunc: p.watch.WatchDelete(utils.WatchPod),
-	})
 }
 
 type PodExecParams struct {

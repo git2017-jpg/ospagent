@@ -10,6 +10,8 @@ import (
 const (
 	LIST     = "list"
 	GET      = "get"
+	DELETE   = "delete"
+	UPDATE   = "update"
 	EXEC     = "exec"
 	STDIN    = "stdin"
 	OPENLOG  = "openLog"
@@ -42,6 +44,8 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 		STDIN:    pod.ExecStdIn,
 		OPENLOG:  pod.OpenLog,
 		CLOSELOG: pod.CloseLog,
+		DELETE:   pod.Delete,
+		UPDATE:   pod.Update,
 	}
 	actionHandlers["pod"] = podActions
 

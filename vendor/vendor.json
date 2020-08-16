@@ -747,6 +747,12 @@
 			"revisionTime": "2019-07-02T04:33:08Z"
 		},
 		{
+			"checksumSHA1": "k+a/i5ffIRiviWAuXkff+pXgNjQ=",
+			"path": "k8s.io/client-go/dynamic",
+			"revision": "c597d117149bd72ddbd8dcb33f3d6eb3c1dcc1fb",
+			"revisionTime": "2019-07-02T04:33:08Z"
+		},
+		{
 			"checksumSHA1": "IuS49rmgU383vtoZgFqU0P36h/E=",
 			"path": "k8s.io/client-go/informers",
 			"revision": "c597d117149bd72ddbd8dcb33f3d6eb3c1dcc1fb",
