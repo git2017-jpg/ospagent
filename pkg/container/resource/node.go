@@ -18,13 +18,22 @@ type Node struct {
 }
 
 type BuildNode struct {
-	UID     string `json:"uid"`
-	Name    string `json:"name"`
-	Taints  int    `json:"taints"`
-	Roles   string `json:"roles"`
-	Version string `json:"version"`
-	Age     string `json:"age"`
-	Status  string `json:"status"`
+	UID              string            `json:"uid"`
+	Name             string            `json:"name"`
+	Taints           int               `json:"taints"`
+	Roles            string            `json:"roles"`
+	Version          string            `json:"version"`
+	Age              string            `json:"age"`
+	Status           string            `json:"status"`
+	OS               string            `json:"os"`
+	OSImage          string            `json:"os_image"`
+	KernelVersion    string            `json:"kernel_version"`
+	ContainerRuntime string            `json:"container_runtime"`
+	Labels           map[string]string `json:"labels"`
+	TotalCPU         string            `json:"total_cpu"`
+	AllocatableCpu   string            `json:"allocatable_cpu"`
+	TotalMem         string            `json:"total_mem"`
+	AllocatableMem   string            `json:"allocatable_mem"`
 }
 
 func (n *Node) ToBuildNode(node *v1.Node) *BuildNode {
@@ -32,10 +41,19 @@ func (n *Node) ToBuildNode(node *v1.Node) *BuildNode {
 		return nil
 	}
 	nodeData := &BuildNode{
-		UID:     string(node.UID),
-		Name:    node.Name,
-		Taints:  len(node.Spec.Taints),
-		Version: node.Status.NodeInfo.KubeletVersion,
+		UID:              string(node.UID),
+		Name:             node.Name,
+		Taints:           len(node.Spec.Taints),
+		Version:          node.Status.NodeInfo.KubeletVersion,
+		OS:               node.Status.NodeInfo.OperatingSystem,
+		OSImage:          node.Status.NodeInfo.OSImage,
+		KernelVersion:    node.Status.NodeInfo.KernelVersion,
+		ContainerRuntime: node.Status.NodeInfo.ContainerRuntimeVersion,
+		Labels:           node.Labels,
+		AllocatableCpu:   node.Status.Allocatable.Cpu().String(),
+		TotalCPU:         node.Status.Capacity.Cpu().String(),
+		AllocatableMem:   node.Status.Allocatable.Memory().String(),
+		TotalMem:         node.Status.Capacity.Memory().String(),
 	}
 	dur := time.Now().Sub(node.CreationTimestamp.Time)
 	nodeData.Age = fmt.Sprintf("%vd", math.Floor(dur.Hours()/24))
