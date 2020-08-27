@@ -13,12 +13,14 @@ type InformerRegistry interface {
 	PodInformer() v1.PodInformer
 	NamespaceInformer() v1.NamespaceInformer
 	NodeInformer() v1.NodeInformer
+	PersistentVolumeInformer() v1.PersistentVolumeInformer
 }
 
 type InformerRegistryImpl struct {
 	podInformer       v1.PodInformer
 	nameSpaceInformer v1.NamespaceInformer
 	nodeInformer      v1.NodeInformer
+	persistentVolumeInformer  v1.PersistentVolumeInformer
 }
 
 func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}) (InformerRegistry, error) {
@@ -34,11 +36,19 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 		return nil, err
 	}
 	nodeInformer, err := NewNodeInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+	persistentVolumeInformer, err := NewPersistentVolumeInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
 
 	return &InformerRegistryImpl{
 		podInformer:       podInformer,
 		nameSpaceInformer: nsInformer,
 		nodeInformer:      nodeInformer,
+		persistentVolumeInformer:persistentVolumeInformer,
 	}, nil
 }
 
@@ -85,8 +95,17 @@ func NewNodeInformer(factory informers.SharedInformerFactory, stopCh <-chan stru
 	return nodeInformer, nil
 }
 
-func NewPersistentVolumeInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) {
+func NewPersistentVolumeInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (v1.PersistentVolumeInformer, error) {
+	persistentVolumeInformer := factory.Core().V1().PersistentVolumes()
+	informer := persistentVolumeInformer.Informer()
+	defer runtime.HandleCrash()
 
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return persistentVolumeInformer, nil
 }
 
 func (r *InformerRegistryImpl) PodInformer() v1.PodInformer {
@@ -99,4 +118,8 @@ func (r *InformerRegistryImpl) NamespaceInformer() v1.NamespaceInformer {
 
 func (r *InformerRegistryImpl) NodeInformer() v1.NodeInformer {
 	return r.nodeInformer
+}
+
+func (r *InformerRegistryImpl) PersistentVolumeInformer() v1.PersistentVolumeInformer {
+	return r.persistentVolumeInformer
 }
