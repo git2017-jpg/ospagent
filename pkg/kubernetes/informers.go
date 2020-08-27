@@ -85,6 +85,10 @@ func NewNodeInformer(factory informers.SharedInformerFactory, stopCh <-chan stru
 	return nodeInformer, nil
 }
 
+func NewPersistentVolumeInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) {
+
+}
+
 func (r *InformerRegistryImpl) PodInformer() v1.PodInformer {
 	return r.podInformer
 }
