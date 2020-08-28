@@ -10,11 +10,11 @@ import (
 func TestPV(t *testing.T) {
 	kubeClient := kubernetes.NewKubeClient("../kubeconfig")
 
-	node := resource.PersistentVolume{
+	pv := resource.PersistentVolume{
 		KubeClient:   kubeClient,
 		SendResponse: nil,
 	}
 
-	res := node.List(nil)
+	res := pv.List(nil)
 	fmt.Println(res.Data)
 }
