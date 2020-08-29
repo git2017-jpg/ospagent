@@ -61,6 +61,12 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 	}
 	actionHandlers["node"] = nodeActions
 
+	configMap := resource.NewConfigMap(kubeClient, sendResponse)
+	configMapActions := ActionHandler{
+		LIST: configMap.List,
+	}
+	actionHandlers["configMap"] = configMapActions
+
 	return &ResourceActions{
 		KubeClient:            kubeClient,
 		ResourceActionHandler: actionHandlers,

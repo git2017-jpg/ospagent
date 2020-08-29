@@ -14,13 +14,15 @@ type InformerRegistry interface {
 	NamespaceInformer() v1.NamespaceInformer
 	NodeInformer() v1.NodeInformer
 	PersistentVolumeInformer() v1.PersistentVolumeInformer
+	ConfigMapInformer() v1.ConfigMapInformer
 }
 
 type InformerRegistryImpl struct {
-	podInformer       v1.PodInformer
-	nameSpaceInformer v1.NamespaceInformer
-	nodeInformer      v1.NodeInformer
-	persistentVolumeInformer  v1.PersistentVolumeInformer
+	podInformer              v1.PodInformer
+	nameSpaceInformer        v1.NamespaceInformer
+	nodeInformer             v1.NodeInformer
+	persistentVolumeInformer v1.PersistentVolumeInformer
+	configMapInformer        v1.ConfigMapInformer
 }
 
 func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}) (InformerRegistry, error) {
@@ -43,12 +45,17 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 	if err != nil {
 		return nil, err
 	}
+	configMapInformer, err := NewConfigMapInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
 
 	return &InformerRegistryImpl{
-		podInformer:       podInformer,
-		nameSpaceInformer: nsInformer,
-		nodeInformer:      nodeInformer,
-		persistentVolumeInformer:persistentVolumeInformer,
+		podInformer:              podInformer,
+		nameSpaceInformer:        nsInformer,
+		nodeInformer:             nodeInformer,
+		persistentVolumeInformer: persistentVolumeInformer,
+		configMapInformer:        configMapInformer,
 	}, nil
 }
 
@@ -108,6 +115,19 @@ func NewPersistentVolumeInformer(factory informers.SharedInformerFactory, stopCh
 	return persistentVolumeInformer, nil
 }
 
+func NewConfigMapInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (v1.ConfigMapInformer, error) {
+	configMapInformer := factory.Core().V1().ConfigMaps()
+	informer := configMapInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return configMapInformer, nil
+}
+
 func (r *InformerRegistryImpl) PodInformer() v1.PodInformer {
 	return r.podInformer
 }
@@ -122,4 +142,8 @@ func (r *InformerRegistryImpl) NodeInformer() v1.NodeInformer {
 
 func (r *InformerRegistryImpl) PersistentVolumeInformer() v1.PersistentVolumeInformer {
 	return r.persistentVolumeInformer
+}
+
+func (r *InformerRegistryImpl) ConfigMapInformer() v1.ConfigMapInformer {
+	return r.configMapInformer
 }

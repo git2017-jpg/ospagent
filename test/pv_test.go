@@ -18,3 +18,15 @@ func TestPV(t *testing.T) {
 	res := pv.List(nil)
 	fmt.Println(res.Data)
 }
+
+func TestConfigMap(t *testing.T) {
+	kubeClient := kubernetes.NewKubeClient("../kubeconfig")
+
+	configMap := resource.ConfigMap{
+		KubeClient:   kubeClient,
+		SendResponse: nil,
+	}
+
+	res := configMap.List(nil)
+	fmt.Println(res.Data)
+}
