@@ -1641,6 +1641,12 @@
 			"revisionTime": "2019-06-27T02:11:19Z"
 		},
 		{
+			"checksumSHA1": "IWm4rlMz2juC+uSORzEOQ3wSy+U=",
+			"path": "k8s.io/kubernetes/pkg/api/legacyscheme",
+			"revision": "8b7e777fe8843419db21293759be861b5a4e682b",
+			"revisionTime": "2019-05-31T11:48:27Z"
+		},
+		{
 			"checksumSHA1": "YOucGCCS3js1TfTtD0qBcXW3xFU=",
 			"path": "k8s.io/utils/buffer",
 			"revision": "c55fbcfc754a5b2ec2fbae8fb9dcac36bdba6a12",

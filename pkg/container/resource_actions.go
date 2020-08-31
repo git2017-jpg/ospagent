@@ -61,6 +61,21 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 	}
 	actionHandlers["node"] = nodeActions
 
+	event := resource.NewEvent(kubeClient, watch)
+	eventActions := ActionHandler{
+		LIST: event.List,
+	}
+	actionHandlers["event"] = eventActions
+
+	deployment := resource.NewDeployment(kubeClient, watch)
+	deploymentActions := ActionHandler{
+		LIST:   deployment.List,
+		GET:    deployment.Get,
+		DELETE: deployment.Delete,
+		UPDATE: deployment.Update,
+	}
+	actionHandlers["deployment"] = deploymentActions
+
 	configMap := resource.NewConfigMap(kubeClient, sendResponse)
 	configMapActions := ActionHandler{
 		LIST: configMap.List,

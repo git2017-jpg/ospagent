@@ -7,6 +7,7 @@ import (
 	"github.com/openspacee/ospagent/pkg/utils"
 	"github.com/openspacee/ospagent/pkg/websocket"
 	"k8s.io/klog"
+	"runtime"
 )
 
 type Container struct {
@@ -55,6 +56,9 @@ func (c *Container) doRequest(request *utils.Request) (resp *utils.Response) {
 	defer func() {
 		if err := recover(); err != nil {
 			klog.Error("do request error: ", err)
+			var buf [4096]byte
+			n := runtime.Stack(buf[:], false)
+			klog.Errorf("==> %s\n", string(buf[:n]))
 			msg := fmt.Sprintf("%s", err)
 			resp = &utils.Response{Code: "UnknownError", Msg: msg}
 		}

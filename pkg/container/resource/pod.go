@@ -10,6 +10,7 @@ import (
 	"github.com/openspacee/ospagent/pkg/websocket"
 	"io"
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -55,9 +56,10 @@ func (p *Pod) DoWatch() {
 }
 
 type PodQueryParams struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-	Output    string `json:"output"`
+	Name          string                `json:"name"`
+	Namespace     string                `json:"namespace"`
+	Output        string                `json:"output"`
+	LabelSelector *metav1.LabelSelector `json:"label_selector"`
 }
 
 type DeletePodParams struct {
@@ -85,6 +87,8 @@ type BuildPod struct {
 	Ip              string            `json:"ip"`
 	NodeName        string            `json:"node_name"`
 	ResourceVersion string            `json:"resource_version"`
+	ContainerNum    int               `json:"containerNum"`
+	Restarts        int32             `json:"restarts"`
 }
 
 func (p *Pod) ToBuildContainer(statuses []v1.ContainerStatus, container *v1.Container) *BuildContainer {
@@ -112,40 +116,62 @@ func (p *Pod) ToBuildPod(pod *v1.Pod) *BuildPod {
 	if pod == nil {
 		return nil
 	}
+	var restarts = int32(0)
 	var containers []*BuildContainer
 	for _, container := range pod.Spec.Containers {
 		bc := p.ToBuildContainer(pod.Status.ContainerStatuses, &container)
 		containers = append(containers, bc)
+		if bc.Restarts > restarts {
+			restarts = bc.Restarts
+		}
 	}
+	cn := len(containers)
 	var initContainers []*BuildContainer
 	for _, container := range pod.Spec.InitContainers {
 		bc := p.ToBuildContainer(pod.Status.InitContainerStatuses, &container)
 		initContainers = append(initContainers, bc)
+		if bc.Restarts > restarts {
+			restarts = bc.Restarts
+		}
 	}
+	cn += len(initContainers)
 	var controlled = ""
 	if len(pod.ObjectMeta.OwnerReferences) > 0 {
 		controlled = pod.ObjectMeta.OwnerReferences[0].Kind
 	}
+
 	return &BuildPod{
-		UID:             string(pod.UID),
-		Name:            pod.Name,
-		Namespace:       pod.Namespace,
-		Containers:      containers,
-		InitContainers:  initContainers,
-		Controlled:      controlled,
-		Qos:             string(pod.Status.QOSClass),
-		Status:          string(pod.Status.Phase),
-		Ip:              pod.Status.PodIP,
-		Created:         fmt.Sprint(pod.CreationTimestamp),
+		UID:            string(pod.UID),
+		Name:           pod.Name,
+		Namespace:      pod.Namespace,
+		Containers:     containers,
+		InitContainers: initContainers,
+		Controlled:     controlled,
+		Qos:            string(pod.Status.QOSClass),
+		Status:         string(pod.Status.Phase),
+		Ip:             pod.Status.PodIP,
+		Created:        fmt.Sprint(pod.GetCreationTimestamp().Format("2006-01-02T15:04:05Z")),
+		//Created: time.Since(pod.GetCreationTimestamp().Time).Round(time.Second).String(),
 		NodeName:        pod.Spec.NodeName,
 		ResourceVersion: pod.ResourceVersion,
+		ContainerNum:    cn,
+		Restarts:        restarts,
 	}
 }
 
 func (p *Pod) List(requestParams interface{}) *utils.Response {
 	queryParams := &PodQueryParams{}
 	json.Unmarshal(requestParams.([]byte), queryParams)
-	podList, err := p.KubeClient.InformerRegistry.PodInformer().Lister().List(labels.Everything())
+	labelSelector := labels.Everything()
+	if queryParams.LabelSelector != nil {
+		var err error
+		labelSelector, err = metav1.LabelSelectorAsSelector(queryParams.LabelSelector)
+		if err != nil {
+			klog.Errorf("label selector error: %v", err)
+			return &utils.Response{Code: code.ParamsError, Msg: err.Error()}
+		}
+	}
+	podList, err := p.KubeClient.InformerRegistry.PodInformer().Lister().Pods(queryParams.Namespace).List(labelSelector)
 	if err != nil {
 		return &utils.Response{
 			Code: code.ListError,
@@ -154,7 +180,7 @@ func (p *Pod) List(requestParams interface{}) *utils.Response {
 	}
 	var podRes []*BuildPod
 	for _, pod := range podList {
-		if queryParams.Name == "" || strings.Contains(pod.ObjectMeta.Name, queryParams.Name) {
+		if queryParams.Name == "" || strings.Contains(pod.Name, queryParams.Name) {
 			podRes = append(podRes, p.ToBuildPod(pod))
 		}
 	}
@@ -170,33 +196,11 @@ func (p *Pod) Get(requestParams interface{}) *utils.Response {
 	if queryParams.Namespace == "" {
 		return &utils.Response{Code: code.ParamsError, Msg: "Namespace is blank"}
 	}
-	pod, err := p.KubeClient.PodLister().Pods(queryParams.Namespace).Get(queryParams.Name)
+	pod, err := p.KubeClient.PodInformer().Lister().Pods(queryParams.Namespace).Get(queryParams.Name)
 	if err != nil {
 		return &utils.Response{Code: code.GetError, Msg: err.Error()}
 	}
 	if queryParams.Output == "yaml" {
-		//e := k8sjson.NewSerializerWithOptions(
-		//	k8sjson.DefaultMetaFactory,
-		//	nil,
-		//	nil,
-		//	k8sjson.SerializerOptions{
-		//		//Yaml:   true,
-		//		Pretty: true,
-		//		Strict: true,},
-		//)
-		//
-		////err := e.EncodeToStream(ns, os.Stdout)
-		//buf := bytes.NewBufferString("")
-		//err := e.Encode(pod, buf)
-		//if err != nil {
-		//	return &utils.Response{Code: code.EncodeError, Msg: err.Error()}
-		//}
-		//podYaml, err := yaml.Marshal(pod)
-		//if err != nil {
-		//	return &utils.Response{Code: code.MarshalError, Msg: err.Error()}
-		//}
-		//a := runtime.Object(pod)
-		//buf, _ := json.Marshal(pod)
 		const mediaType = runtime.ContentTypeYAML
 		rscheme := runtime.NewScheme()
 		v1.AddToScheme(rscheme)
@@ -213,7 +217,6 @@ func (p *Pod) Get(requestParams interface{}) *utils.Response {
 			klog.Error(e)
 			return &utils.Response{Code: code.Success, Msg: e.Error()}
 		}
-		klog.Info(d)
 		return &utils.Response{Code: code.Success, Msg: "Success", Data: string(d)}
 	}
 	return &utils.Response{Code: code.Success, Msg: "Success", Data: pod}
@@ -286,6 +289,7 @@ func (p *Pod) startProcess(podName, namespace, container, sessionId, rows, cols 
 		p.SendResponse(base64.StdEncoding.EncodeToString([]byte(err.Error())), sessionId, utils.ExecType)
 		return
 	}
+	p.SendResponse(base64.StdEncoding.EncodeToString([]byte(fmt.Sprint("\nConnection closed"))), sessionId, utils.ExecType)
 	klog.Info("end stream session", sessionId)
 }
 

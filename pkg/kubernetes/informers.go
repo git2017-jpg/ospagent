@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
+	appsv1 "k8s.io/client-go/informers/apps/v1"
 	"k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -13,6 +14,8 @@ type InformerRegistry interface {
 	PodInformer() v1.PodInformer
 	NamespaceInformer() v1.NamespaceInformer
 	NodeInformer() v1.NodeInformer
+	EventInformer() v1.EventInformer
+	DeploymentInformer() appsv1.DeploymentInformer
 	PersistentVolumeInformer() v1.PersistentVolumeInformer
 	ConfigMapInformer() v1.ConfigMapInformer
 }
@@ -21,6 +24,8 @@ type InformerRegistryImpl struct {
 	podInformer              v1.PodInformer
 	nameSpaceInformer        v1.NamespaceInformer
 	nodeInformer             v1.NodeInformer
+	eventInformer            v1.EventInformer
+	deploymentInformer       appsv1.DeploymentInformer
 	persistentVolumeInformer v1.PersistentVolumeInformer
 	configMapInformer        v1.ConfigMapInformer
 }
@@ -50,10 +55,22 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 		return nil, err
 	}
 
+	eventInformer, err := NewEventInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+
+	deploymentInformer, err := NewDeploymentInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+
 	return &InformerRegistryImpl{
 		podInformer:              podInformer,
 		nameSpaceInformer:        nsInformer,
 		nodeInformer:             nodeInformer,
+		eventInformer:            eventInformer,
+		deploymentInformer:       deploymentInformer,
 		persistentVolumeInformer: persistentVolumeInformer,
 		configMapInformer:        configMapInformer,
 	}, nil
@@ -102,6 +119,32 @@ func NewNodeInformer(factory informers.SharedInformerFactory, stopCh <-chan stru
 	return nodeInformer, nil
 }
 
+func NewEventInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (v1.EventInformer, error) {
+	eventInformer := factory.Core().V1().Events()
+	informer := eventInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return eventInformer, nil
+}
+
+func NewDeploymentInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (appsv1.DeploymentInformer, error) {
+	deploymentInformer := factory.Apps().V1().Deployments()
+	informer := deploymentInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return deploymentInformer, nil
+}
+
 func NewPersistentVolumeInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (v1.PersistentVolumeInformer, error) {
 	persistentVolumeInformer := factory.Core().V1().PersistentVolumes()
 	informer := persistentVolumeInformer.Informer()
@@ -138,6 +181,14 @@ func (r *InformerRegistryImpl) NamespaceInformer() v1.NamespaceInformer {
 
 func (r *InformerRegistryImpl) NodeInformer() v1.NodeInformer {
 	return r.nodeInformer
+}
+
+func (r *InformerRegistryImpl) EventInformer() v1.EventInformer {
+	return r.eventInformer
+}
+
+func (r *InformerRegistryImpl) DeploymentInformer() appsv1.DeploymentInformer {
+	return r.deploymentInformer
 }
 
 func (r *InformerRegistryImpl) PersistentVolumeInformer() v1.PersistentVolumeInformer {

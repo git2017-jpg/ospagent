@@ -33,6 +33,15 @@ func NewNamespace(
 	return ns
 }
 
+func (n *Namespace) DoWatch() {
+	nsInformer := n.KubeClient.NamespaceInformer().Informer()
+	nsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    n.watch.WatchAdd(utils.WatchNamespace),
+		UpdateFunc: n.watch.WatchUpdate(utils.WatchNamespace),
+		DeleteFunc: n.watch.WatchDelete(utils.WatchNamespace),
+	})
+}
+
 type NsQueryParams struct {
 	Name   string `json:"name"`
 	Output string `json:"output"`
@@ -74,13 +83,4 @@ func (n *Namespace) List(requestParams interface{}) *utils.Response {
 		}
 	}
 	return &utils.Response{Code: code.Success, Msg: "Success", Data: nsRes}
-}
-
-func (n *Namespace) DoWatch() {
-	nsInformer := n.KubeClient.NamespaceInformer().Informer()
-	nsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    n.watch.WatchAdd(utils.WatchNamespace),
-		UpdateFunc: n.watch.WatchUpdate(utils.WatchNamespace),
-		DeleteFunc: n.watch.WatchDelete(utils.WatchNamespace),
-	})
 }

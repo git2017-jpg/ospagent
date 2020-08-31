@@ -12,7 +12,7 @@ type KubeClient struct {
 	ClientSet     kube_client.Interface
 	DynamicClient dynamic.Interface
 	Config        *rest.Config
-	ListRegistry
+	//ListRegistry
 	InformerRegistry
 }
 
@@ -42,16 +42,16 @@ func NewKubeClient(kubeConfigFile string) *KubeClient {
 	if err != nil {
 		panic(err.Error())
 	}
-	listRegistry := NewListRegistry(kubeClient, nil)
+	//listRegistry := NewListRegistry(kubeClient, nil)
 	informerRegistry, err := NewInformerRegistry(kubeClient, nil)
 	if err != nil {
 		panic(err.Error())
 	}
 	return &KubeClient{
-		ClientSet:        kubeClient,
-		DynamicClient:    dynamicClient,
-		Config:           config,
-		ListRegistry:     listRegistry,
+		ClientSet:     kubeClient,
+		DynamicClient: dynamicClient,
+		Config:        config,
+		//ListRegistry:     listRegistry,
 		InformerRegistry: informerRegistry,
 	}
 }

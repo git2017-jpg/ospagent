@@ -65,7 +65,6 @@ type DynamicUpdateParams struct {
 func (d *DynamicResource) Update(updateParams interface{}) *utils.Response {
 	params := &DynamicUpdateParams{}
 	json.Unmarshal(updateParams.([]byte), params)
-	klog.Info(params.YamlStr)
 	mapObj := make(map[string]interface{})
 	if err := yaml.Unmarshal([]byte(params.YamlStr), &mapObj); err != nil {
 		klog.Error("Parse yaml error: ", err)

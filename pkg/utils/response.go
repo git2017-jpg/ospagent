@@ -15,8 +15,15 @@ const (
 	UpdateEvent = "update"
 	DeleteEvent = "delete"
 
-	WatchPod       = "pods"
-	WatchNamespace = "namespace"
+	WatchPod         = "pods"
+	WatchNamespace   = "namespace"
+	WatchEvent       = "event"
+	WatchDeployment  = "deployment"
+	WatchNode        = "node"
+	WatchDaemonset   = "daemonset"
+	WatchStatefulset = "statefulset"
+	WatchCronjob     = "cronjob"
+	WatchJob         = "job"
 )
 
 type Response struct {
