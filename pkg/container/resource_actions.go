@@ -8,14 +8,15 @@ import (
 )
 
 const (
-	LIST     = "list"
-	GET      = "get"
-	DELETE   = "delete"
-	UPDATE   = "update"
-	EXEC     = "exec"
-	STDIN    = "stdin"
-	OPENLOG  = "openLog"
-	CLOSELOG = "closeLog"
+	LIST       = "list"
+	GET        = "get"
+	DELETE     = "delete"
+	UPDATEYAML = "update_yaml"
+	UPDATEOBJ  = "update_obj"
+	EXEC       = "exec"
+	STDIN      = "stdin"
+	OPENLOG    = "openLog"
+	CLOSELOG   = "closeLog"
 )
 
 type Handler func(interface{}) *utils.Response
@@ -38,14 +39,14 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 
 	pod := resource.NewPod(kubeClient, sendResponse, watch)
 	podActions := ActionHandler{
-		LIST:     pod.List,
-		GET:      pod.Get,
-		EXEC:     pod.Exec,
-		STDIN:    pod.ExecStdIn,
-		OPENLOG:  pod.OpenLog,
-		CLOSELOG: pod.CloseLog,
-		DELETE:   pod.Delete,
-		UPDATE:   pod.Update,
+		LIST:       pod.List,
+		GET:        pod.Get,
+		EXEC:       pod.Exec,
+		STDIN:      pod.ExecStdIn,
+		OPENLOG:    pod.OpenLog,
+		CLOSELOG:   pod.CloseLog,
+		DELETE:     pod.Delete,
+		UPDATEYAML: pod.UpdateYaml,
 	}
 	actionHandlers["pod"] = podActions
 
@@ -69,10 +70,11 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 
 	deployment := resource.NewDeployment(kubeClient, watch)
 	deploymentActions := ActionHandler{
-		LIST:   deployment.List,
-		GET:    deployment.Get,
-		DELETE: deployment.Delete,
-		UPDATE: deployment.Update,
+		LIST:       deployment.List,
+		GET:        deployment.Get,
+		DELETE:     deployment.Delete,
+		UPDATEYAML: deployment.UpdateYaml,
+		UPDATEOBJ:  deployment.UpdateObj,
 	}
 	actionHandlers["deployment"] = deploymentActions
 

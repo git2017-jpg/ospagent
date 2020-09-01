@@ -62,7 +62,7 @@ type DynamicUpdateParams struct {
 	YamlStr   string `json:"yaml"`
 }
 
-func (d *DynamicResource) Update(updateParams interface{}) *utils.Response {
+func (d *DynamicResource) UpdateYaml(updateParams interface{}) *utils.Response {
 	params := &DynamicUpdateParams{}
 	json.Unmarshal(updateParams.([]byte), params)
 	mapObj := make(map[string]interface{})

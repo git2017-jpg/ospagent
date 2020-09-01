@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"strings"
 )
@@ -96,6 +97,12 @@ type DeploymentQueryParams struct {
 	Output    string `json:"output"`
 }
 
+type DeploymentUpdateParams struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Replicas  int32  `json:"replicas"`
+}
+
 func (d *Deployment) List(requestParams interface{}) *utils.Response {
 	queryParams := &DeploymentQueryParams{}
 	json.Unmarshal(requestParams.([]byte), queryParams)
@@ -155,4 +162,35 @@ func (d *Deployment) Get(requestParams interface{}) *utils.Response {
 		return &utils.Response{Code: code.Success, Msg: "Success", Data: string(d)}
 	}
 	return &utils.Response{Code: code.Success, Msg: "Success", Data: dp}
+}
+
+func (d *Deployment) UpdateObj(updateParams interface{}) *utils.Response {
+	params := &DeploymentUpdateParams{}
+	json.Unmarshal(updateParams.([]byte), params)
+	if params.Name == "" {
+		return &utils.Response{Code: code.ParamsError, Msg: "Deployment name is blank"}
+	}
+	if params.Namespace == "" {
+		return &utils.Response{Code: code.ParamsError, Msg: "Namespace is blank"}
+	}
+	if params.Replicas < 1 {
+		return &utils.Response{Code: code.ParamsError, Msg: "Replicas is less than 1"}
+	}
+	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Retrieve the latest version of Deployment before attempting update
+		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
+		result, getErr := d.KubeClient.InformerRegistry.DeploymentInformer().Lister().Deployments(params.Namespace).Get(params.Name)
+		if getErr != nil {
+			panic(fmt.Errorf("failed to get latest version of Deployment: %v", getErr))
+		}
+
+		result.Spec.Replicas = &params.Replicas
+		_, updateErr := d.ClientSet.AppsV1().Deployments(params.Namespace).Update(result)
+		return updateErr
+	})
+	if retryErr != nil {
+		klog.Errorf("Update failed: %v", retryErr)
+		return &utils.Response{Code: code.ParamsError, Msg: retryErr.Error()}
+	}
+	return &utils.Response{Code: code.Success, Msg: "Success"}
 }
