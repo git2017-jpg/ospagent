@@ -18,6 +18,8 @@ type InformerRegistry interface {
 	DeploymentInformer() appsv1.DeploymentInformer
 	PersistentVolumeInformer() v1.PersistentVolumeInformer
 	ConfigMapInformer() v1.ConfigMapInformer
+	StatefulSetInformer() appsv1.StatefulSetInformer
+	DaemonSetInformer() appsv1.DaemonSetInformer
 }
 
 type InformerRegistryImpl struct {
@@ -28,6 +30,8 @@ type InformerRegistryImpl struct {
 	deploymentInformer       appsv1.DeploymentInformer
 	persistentVolumeInformer v1.PersistentVolumeInformer
 	configMapInformer        v1.ConfigMapInformer
+	statefulSetInformer      appsv1.StatefulSetInformer
+	daemonSetInformer        appsv1.DaemonSetInformer
 }
 
 func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}) (InformerRegistry, error) {
@@ -65,6 +69,16 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 		return nil, err
 	}
 
+	statefulSetInformer, err := NewStatefulSetInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+
+	daemonSetInformer, err := NewDaemonSetInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+
 	return &InformerRegistryImpl{
 		podInformer:              podInformer,
 		nameSpaceInformer:        nsInformer,
@@ -73,6 +87,8 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 		deploymentInformer:       deploymentInformer,
 		persistentVolumeInformer: persistentVolumeInformer,
 		configMapInformer:        configMapInformer,
+		statefulSetInformer:      statefulSetInformer,
+		daemonSetInformer:        daemonSetInformer,
 	}, nil
 }
 
@@ -171,6 +187,32 @@ func NewConfigMapInformer(factory informers.SharedInformerFactory, stopCh <-chan
 	return configMapInformer, nil
 }
 
+func NewStatefulSetInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (appsv1.StatefulSetInformer, error) {
+	statefulSetInformer := factory.Apps().V1().StatefulSets()
+	informer := statefulSetInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return statefulSetInformer, nil
+}
+
+func NewDaemonSetInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (appsv1.DaemonSetInformer, error) {
+	daemonSetInformer := factory.Apps().V1().DaemonSets()
+	informer := daemonSetInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return daemonSetInformer, nil
+}
+
 func (r *InformerRegistryImpl) PodInformer() v1.PodInformer {
 	return r.podInformer
 }
@@ -197,4 +239,12 @@ func (r *InformerRegistryImpl) PersistentVolumeInformer() v1.PersistentVolumeInf
 
 func (r *InformerRegistryImpl) ConfigMapInformer() v1.ConfigMapInformer {
 	return r.configMapInformer
+}
+
+func (r *InformerRegistryImpl) StatefulSetInformer() appsv1.StatefulSetInformer {
+	return r.statefulSetInformer
+}
+
+func (r *InformerRegistryImpl) DaemonSetInformer() appsv1.DaemonSetInformer {
+	return r.daemonSetInformer
 }

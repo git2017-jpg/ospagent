@@ -78,6 +78,26 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 	}
 	actionHandlers["deployment"] = deploymentActions
 
+	statefulset := resource.NewStatefulSet(kubeClient, watch)
+	statefulsetActions := ActionHandler{
+		LIST:       statefulset.List,
+		GET:        statefulset.Get,
+		DELETE:     statefulset.Delete,
+		UPDATEYAML: statefulset.UpdateYaml,
+		UPDATEOBJ:  statefulset.UpdateObj,
+	}
+	actionHandlers["statefulset"] = statefulsetActions
+
+	daemonset := resource.NewDaemonSet(kubeClient, watch)
+	daemonsetActions := ActionHandler{
+		LIST:       daemonset.List,
+		GET:        daemonset.Get,
+		DELETE:     daemonset.Delete,
+		UPDATEYAML: daemonset.UpdateYaml,
+		UPDATEOBJ:  daemonset.UpdateObj,
+	}
+	actionHandlers["daemonset"] = daemonsetActions
+
 	configMap := resource.NewConfigMap(kubeClient, sendResponse)
 	configMapActions := ActionHandler{
 		LIST: configMap.List,
