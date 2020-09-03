@@ -105,6 +105,12 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 	}
 	actionHandlers["configMap"] = configMapActions
 
+	persistentVolume := resource.NewPersistentVolume(kubeClient, sendResponse)
+	persistentVolumeActions := ActionHandler{
+		LIST: persistentVolume.List,
+	}
+	actionHandlers["persistentVolume"] = persistentVolumeActions
+
 	return &ResourceActions{
 		KubeClient:            kubeClient,
 		ResourceActionHandler: actionHandlers,
