@@ -82,7 +82,7 @@ type BuildPod struct {
 	InitContainers  []*BuildContainer `json:"init_containers"`
 	Controlled      string            `json:"controlled"`
 	Qos             string            `json:"qos"`
-	Created         string            `json:"created"`
+	Created         metav1.Time       `json:"created"`
 	Status          string            `json:"status"`
 	Ip              string            `json:"ip"`
 	NodeName        string            `json:"node_name"`
@@ -150,7 +150,7 @@ func (p *Pod) ToBuildPod(pod *v1.Pod) *BuildPod {
 		Qos:            string(pod.Status.QOSClass),
 		Status:         string(pod.Status.Phase),
 		Ip:             pod.Status.PodIP,
-		Created:        fmt.Sprint(pod.GetCreationTimestamp().Format("2006-01-02T15:04:05Z")),
+		Created:        pod.GetCreationTimestamp(),
 		//Created: time.Since(pod.GetCreationTimestamp().Time).Round(time.Second).String(),
 		NodeName:        pod.Spec.NodeName,
 		ResourceVersion: pod.ResourceVersion,

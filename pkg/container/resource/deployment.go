@@ -8,6 +8,7 @@ import (
 	"github.com/openspacee/ospagent/pkg/utils/code"
 	"k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -46,19 +47,19 @@ func (d *Deployment) DoWatch() {
 }
 
 type BuildDeployment struct {
-	UID                 string   `json:"uid"`
-	Name                string   `json:"name"`
-	Namespace           string   `json:"namespace"`
-	Replicas            int32    `json:"replicas"`
-	StatusReplicas      int32    `json:"status_replicas"`
-	ReadyReplicas       int32    `json:"ready_replicas"`
-	UpdatedReplicas     int32    `json:"updated_replicas"`
-	UnavailableReplicas int32    `json:"unavailable_replicas"`
-	AvailableReplicas   int32    `json:"available_replicas"`
-	ResourceVersion     string   `json:"resource_version"`
-	Strategy            string   `json:"strategy"`
-	Conditions          []string `json:"conditions"`
-	Created             string   `json:"created"`
+	UID                 string      `json:"uid"`
+	Name                string      `json:"name"`
+	Namespace           string      `json:"namespace"`
+	Replicas            int32       `json:"replicas"`
+	StatusReplicas      int32       `json:"status_replicas"`
+	ReadyReplicas       int32       `json:"ready_replicas"`
+	UpdatedReplicas     int32       `json:"updated_replicas"`
+	UnavailableReplicas int32       `json:"unavailable_replicas"`
+	AvailableReplicas   int32       `json:"available_replicas"`
+	ResourceVersion     string      `json:"resource_version"`
+	Strategy            string      `json:"strategy"`
+	Conditions          []string    `json:"conditions"`
+	Created             metav1.Time `json:"created"`
 }
 
 func (d *Deployment) ToBuildDeployment(dp *v1.Deployment) *BuildDeployment {
@@ -84,7 +85,7 @@ func (d *Deployment) ToBuildDeployment(dp *v1.Deployment) *BuildDeployment {
 		ResourceVersion:     dp.ResourceVersion,
 		Strategy:            string(dp.Spec.Strategy.Type),
 		Conditions:          conditions,
-		Created:             fmt.Sprint(dp.CreationTimestamp.Format("2006-01-02T15:04:05Z")),
+		Created:             dp.CreationTimestamp,
 	}
 
 	return dpData

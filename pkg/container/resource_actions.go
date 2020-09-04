@@ -98,6 +98,26 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 	}
 	actionHandlers["daemonset"] = daemonsetActions
 
+	job := resource.NewJob(kubeClient, watch)
+	jobActions := ActionHandler{
+		LIST:       job.List,
+		GET:        job.Get,
+		DELETE:     job.Delete,
+		UPDATEYAML: job.UpdateYaml,
+		UPDATEOBJ:  job.UpdateObj,
+	}
+	actionHandlers["job"] = jobActions
+
+	cronjob := resource.NewCronJob(kubeClient, watch)
+	cronjobActions := ActionHandler{
+		LIST:       cronjob.List,
+		GET:        cronjob.Get,
+		DELETE:     cronjob.Delete,
+		UPDATEYAML: cronjob.UpdateYaml,
+		UPDATEOBJ:  cronjob.UpdateObj,
+	}
+	actionHandlers["cronjob"] = cronjobActions
+
 	configMap := resource.NewConfigMap(kubeClient, sendResponse)
 	configMapActions := ActionHandler{
 		LIST: configMap.List,

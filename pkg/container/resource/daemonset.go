@@ -8,6 +8,7 @@ import (
 	"github.com/openspacee/ospagent/pkg/utils/code"
 	"k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -55,7 +56,7 @@ type BuildDaemonSet struct {
 	Strategy               string            `json:"strategy"`
 	Conditions             []string          `json:"conditions"`
 	NodeSelector           map[string]string `json:"node_selector"`
-	Created                string            `json:"created"`
+	Created                metav1.Time       `json:"created"`
 }
 
 func (d *DaemonSet) ToBuildDaemonSet(ds *v1.DaemonSet) *BuildDaemonSet {
@@ -78,7 +79,7 @@ func (d *DaemonSet) ToBuildDaemonSet(ds *v1.DaemonSet) *BuildDaemonSet {
 		Conditions:             conditions,
 		Strategy:               string(ds.Spec.UpdateStrategy.Type),
 		NodeSelector:           ds.Spec.Template.Spec.NodeSelector,
-		Created:                fmt.Sprint(ds.CreationTimestamp.Format("2006-01-02T15:04:05Z")),
+		Created:                ds.CreationTimestamp,
 	}
 
 	return data

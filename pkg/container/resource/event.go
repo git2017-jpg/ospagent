@@ -2,11 +2,11 @@ package resource
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/openspacee/ospagent/pkg/kubernetes"
 	"github.com/openspacee/ospagent/pkg/utils"
 	"github.com/openspacee/ospagent/pkg/utils/code"
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 )
@@ -41,7 +41,7 @@ type BuildEvent struct {
 	Type            string              `json:"type"`
 	Object          *v1.ObjectReference `json:"object"`
 	Source          *v1.EventSource     `json:"source"`
-	EventTime       string              `json:"event_time"`
+	EventTime       metav1.Time         `json:"event_time"`
 	ResourceVersion string              `json:"resource_version"`
 }
 
@@ -63,7 +63,7 @@ func (e *Event) ToBuildEvent(event *v1.Event) *BuildEvent {
 		Type:            event.Type,
 		Object:          &event.InvolvedObject,
 		Source:          &event.Source,
-		EventTime:       fmt.Sprint(eventTime.Format("2006-01-02T15:04:05Z")),
+		EventTime:       eventTime,
 		ResourceVersion: event.ResourceVersion,
 	}
 

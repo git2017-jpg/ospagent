@@ -8,6 +8,7 @@ import (
 	"github.com/openspacee/ospagent/pkg/utils/code"
 	"k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -46,17 +47,17 @@ func (s *StatefulSet) DoWatch() {
 }
 
 type BuildStatefulSet struct {
-	UID             string   `json:"uid"`
-	Name            string   `json:"name"`
-	Namespace       string   `json:"namespace"`
-	Replicas        int32    `json:"replicas"`
-	StatusReplicas  int32    `json:"status_replicas"`
-	ReadyReplicas   int32    `json:"ready_replicas"`
-	UpdatedReplicas int32    `json:"updated_replicas"`
-	ResourceVersion string   `json:"resource_version"`
-	Strategy        string   `json:"strategy"`
-	Conditions      []string `json:"conditions"`
-	Created         string   `json:"created"`
+	UID             string      `json:"uid"`
+	Name            string      `json:"name"`
+	Namespace       string      `json:"namespace"`
+	Replicas        int32       `json:"replicas"`
+	StatusReplicas  int32       `json:"status_replicas"`
+	ReadyReplicas   int32       `json:"ready_replicas"`
+	UpdatedReplicas int32       `json:"updated_replicas"`
+	ResourceVersion string      `json:"resource_version"`
+	Strategy        string      `json:"strategy"`
+	Conditions      []string    `json:"conditions"`
+	Created         metav1.Time `json:"created"`
 }
 
 func (s *StatefulSet) ToBuildStatefulSet(ss *v1.StatefulSet) *BuildStatefulSet {
@@ -80,7 +81,7 @@ func (s *StatefulSet) ToBuildStatefulSet(ss *v1.StatefulSet) *BuildStatefulSet {
 		ResourceVersion: ss.ResourceVersion,
 		Strategy:        string(ss.Spec.UpdateStrategy.Type),
 		Conditions:      conditions,
-		Created:         fmt.Sprint(ss.CreationTimestamp.Format("2006-01-02T15:04:05Z")),
+		Created:         ss.CreationTimestamp,
 	}
 
 	return data

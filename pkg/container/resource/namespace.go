@@ -2,12 +2,12 @@ package resource
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/openspacee/ospagent/pkg/kubernetes"
 	"github.com/openspacee/ospagent/pkg/utils"
 	"github.com/openspacee/ospagent/pkg/utils/code"
 	"github.com/openspacee/ospagent/pkg/websocket"
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 	"strings"
@@ -48,10 +48,10 @@ type NsQueryParams struct {
 }
 
 type BuildNamespace struct {
-	UID     string `json:"uid"`
-	Name    string `json:"name"`
-	Created string `json:"created"`
-	Status  string `json:"status"`
+	UID     string      `json:"uid"`
+	Name    string      `json:"name"`
+	Created metav1.Time `json:"created"`
+	Status  string      `json:"status"`
 }
 
 func (n *Namespace) ToBuildNamespace(ns *v1.Namespace) *BuildNamespace {
@@ -61,7 +61,7 @@ func (n *Namespace) ToBuildNamespace(ns *v1.Namespace) *BuildNamespace {
 	return &BuildNamespace{
 		UID:     string(ns.UID),
 		Name:    ns.Name,
-		Created: fmt.Sprint(ns.CreationTimestamp),
+		Created: ns.CreationTimestamp,
 		Status:  string(ns.Status.Phase),
 	}
 }

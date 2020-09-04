@@ -5,6 +5,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	appsv1 "k8s.io/client-go/informers/apps/v1"
+	batchv1 "k8s.io/client-go/informers/batch/v1"
+	batchv1beta1 "k8s.io/client-go/informers/batch/v1beta1"
 	"k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -20,6 +22,8 @@ type InformerRegistry interface {
 	ConfigMapInformer() v1.ConfigMapInformer
 	StatefulSetInformer() appsv1.StatefulSetInformer
 	DaemonSetInformer() appsv1.DaemonSetInformer
+	JobInformer() batchv1.JobInformer
+	CronJobInformer() batchv1beta1.CronJobInformer
 }
 
 type InformerRegistryImpl struct {
@@ -32,6 +36,8 @@ type InformerRegistryImpl struct {
 	configMapInformer        v1.ConfigMapInformer
 	statefulSetInformer      appsv1.StatefulSetInformer
 	daemonSetInformer        appsv1.DaemonSetInformer
+	jobInformer              batchv1.JobInformer
+	cronJobInformer          batchv1beta1.CronJobInformer
 }
 
 func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}) (InformerRegistry, error) {
@@ -79,6 +85,16 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 		return nil, err
 	}
 
+	jobInformer, err := NewJobInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+
+	cronJobInformer, err := NewCronJobInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+
 	return &InformerRegistryImpl{
 		podInformer:              podInformer,
 		nameSpaceInformer:        nsInformer,
@@ -89,6 +105,8 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 		configMapInformer:        configMapInformer,
 		statefulSetInformer:      statefulSetInformer,
 		daemonSetInformer:        daemonSetInformer,
+		jobInformer:              jobInformer,
+		cronJobInformer:          cronJobInformer,
 	}, nil
 }
 
@@ -213,6 +231,32 @@ func NewDaemonSetInformer(factory informers.SharedInformerFactory, stopCh <-chan
 	return daemonSetInformer, nil
 }
 
+func NewJobInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (batchv1.JobInformer, error) {
+	jobInformer := factory.Batch().V1().Jobs()
+	informer := jobInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return jobInformer, nil
+}
+
+func NewCronJobInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (batchv1beta1.CronJobInformer, error) {
+	cronJobInformer := factory.Batch().V1beta1().CronJobs()
+	informer := cronJobInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return cronJobInformer, nil
+}
+
 func (r *InformerRegistryImpl) PodInformer() v1.PodInformer {
 	return r.podInformer
 }
@@ -247,4 +291,12 @@ func (r *InformerRegistryImpl) StatefulSetInformer() appsv1.StatefulSetInformer 
 
 func (r *InformerRegistryImpl) DaemonSetInformer() appsv1.DaemonSetInformer {
 	return r.daemonSetInformer
+}
+
+func (r *InformerRegistryImpl) JobInformer() batchv1.JobInformer {
+	return r.jobInformer
+}
+
+func (r *InformerRegistryImpl) CronJobInformer() batchv1beta1.CronJobInformer {
+	return r.cronJobInformer
 }
