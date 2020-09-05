@@ -40,6 +40,7 @@ func (c *ConfigMap) ToBuildConfigMap(cm *v1.ConfigMap) *BuildConfigMap {
 	if cm == nil {
 		return nil
 	}
+
 	cmData := &BuildConfigMap{
 		Name:       cm.Name,
 		NameSpace:  cm.Namespace,

@@ -19,6 +19,7 @@ type InformerRegistry interface {
 	EventInformer() v1.EventInformer
 	DeploymentInformer() appsv1.DeploymentInformer
 	PersistentVolumeInformer() v1.PersistentVolumeInformer
+	PersistentVolumeClaimInformer() v1.PersistentVolumeClaimInformer
 	ConfigMapInformer() v1.ConfigMapInformer
 	StatefulSetInformer() appsv1.StatefulSetInformer
 	DaemonSetInformer() appsv1.DaemonSetInformer
@@ -27,17 +28,18 @@ type InformerRegistry interface {
 }
 
 type InformerRegistryImpl struct {
-	podInformer              v1.PodInformer
-	nameSpaceInformer        v1.NamespaceInformer
-	nodeInformer             v1.NodeInformer
-	eventInformer            v1.EventInformer
-	deploymentInformer       appsv1.DeploymentInformer
-	persistentVolumeInformer v1.PersistentVolumeInformer
-	configMapInformer        v1.ConfigMapInformer
-	statefulSetInformer      appsv1.StatefulSetInformer
-	daemonSetInformer        appsv1.DaemonSetInformer
-	jobInformer              batchv1.JobInformer
-	cronJobInformer          batchv1beta1.CronJobInformer
+	podInformer                   v1.PodInformer
+	nameSpaceInformer             v1.NamespaceInformer
+	nodeInformer                  v1.NodeInformer
+	eventInformer                 v1.EventInformer
+	deploymentInformer            appsv1.DeploymentInformer
+	persistentVolumeInformer      v1.PersistentVolumeInformer
+	persistentVolumeClaimInformer v1.PersistentVolumeClaimInformer
+	configMapInformer             v1.ConfigMapInformer
+	statefulSetInformer           appsv1.StatefulSetInformer
+	daemonSetInformer             appsv1.DaemonSetInformer
+	jobInformer                   batchv1.JobInformer
+	cronJobInformer               batchv1beta1.CronJobInformer
 }
 
 func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}) (InformerRegistry, error) {
@@ -57,6 +59,10 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 		return nil, err
 	}
 	persistentVolumeInformer, err := NewPersistentVolumeInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+	persistentVolumeClaimInformer, err := NewPersistentVolumeClaimInformer(factory, stopCh)
 	if err != nil {
 		return nil, err
 	}
@@ -96,17 +102,18 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 	}
 
 	return &InformerRegistryImpl{
-		podInformer:              podInformer,
-		nameSpaceInformer:        nsInformer,
-		nodeInformer:             nodeInformer,
-		eventInformer:            eventInformer,
-		deploymentInformer:       deploymentInformer,
-		persistentVolumeInformer: persistentVolumeInformer,
-		configMapInformer:        configMapInformer,
-		statefulSetInformer:      statefulSetInformer,
-		daemonSetInformer:        daemonSetInformer,
-		jobInformer:              jobInformer,
-		cronJobInformer:          cronJobInformer,
+		podInformer:                   podInformer,
+		nameSpaceInformer:             nsInformer,
+		nodeInformer:                  nodeInformer,
+		eventInformer:                 eventInformer,
+		deploymentInformer:            deploymentInformer,
+		persistentVolumeInformer:      persistentVolumeInformer,
+		persistentVolumeClaimInformer: persistentVolumeClaimInformer,
+		configMapInformer:             configMapInformer,
+		statefulSetInformer:           statefulSetInformer,
+		daemonSetInformer:             daemonSetInformer,
+		jobInformer:                   jobInformer,
+		cronJobInformer:               cronJobInformer,
 	}, nil
 }
 
@@ -190,6 +197,19 @@ func NewPersistentVolumeInformer(factory informers.SharedInformerFactory, stopCh
 		return nil, fmt.Errorf("time out waiting for caches to sync")
 	}
 	return persistentVolumeInformer, nil
+}
+
+func NewPersistentVolumeClaimInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (v1.PersistentVolumeClaimInformer, error) {
+	persistentVolumeClaimInformer := factory.Core().V1().PersistentVolumeClaims()
+	informer := persistentVolumeClaimInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return persistentVolumeClaimInformer, nil
 }
 
 func NewConfigMapInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (v1.ConfigMapInformer, error) {
@@ -279,6 +299,10 @@ func (r *InformerRegistryImpl) DeploymentInformer() appsv1.DeploymentInformer {
 
 func (r *InformerRegistryImpl) PersistentVolumeInformer() v1.PersistentVolumeInformer {
 	return r.persistentVolumeInformer
+}
+
+func (r *InformerRegistryImpl) PersistentVolumeClaimInformer() v1.PersistentVolumeClaimInformer {
+	return r.persistentVolumeClaimInformer
 }
 
 func (r *InformerRegistryImpl) ConfigMapInformer() v1.ConfigMapInformer {

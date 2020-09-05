@@ -120,16 +120,25 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 
 	configMap := resource.NewConfigMap(kubeClient, sendResponse)
 	configMapActions := ActionHandler{
-		LIST: configMap.List,
-		GET:  configMap.Get,
+		LIST:       configMap.List,
+		GET:        configMap.Get,
+		UPDATEYAML: configMap.UpdateYaml,
 	}
 	actionHandlers["configMap"] = configMapActions
 
 	persistentVolume := resource.NewPersistentVolume(kubeClient, sendResponse)
 	persistentVolumeActions := ActionHandler{
 		LIST: persistentVolume.List,
+		GET:  persistentVolume.Get,
 	}
 	actionHandlers["persistentVolume"] = persistentVolumeActions
+
+	persistentVolumeClaim := resource.NewPersistentVolumeClaim(kubeClient, sendResponse)
+	persistentVolumeClaimActions := ActionHandler{
+		LIST: persistentVolumeClaim.List,
+		GET:  persistentVolumeClaim.Get,
+	}
+	actionHandlers["persistentVolumeClaim"] = persistentVolumeClaimActions
 
 	return &ResourceActions{
 		KubeClient:            kubeClient,

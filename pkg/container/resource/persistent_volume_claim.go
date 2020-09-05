@@ -15,14 +15,15 @@ import (
 	"k8s.io/klog"
 )
 
-type PersistentVolume struct {
+type PersistentVolumeClaim struct {
 	*kubernetes.KubeClient
 	websocket.SendResponse
 	*DynamicResource
 }
 
-type BuildPersistentVolume struct {
+type BuildPersistentVolumeClaim struct {
 	Name          string                           `json:"name"`
+	Namespace     string                           `json:"namespace"`
 	Status        string                           `json:"status"`
 	Claim         string                           `json:"claim"`
 	StorageClass  string                           `json:"storage_class"`
@@ -32,64 +33,60 @@ type BuildPersistentVolume struct {
 	ReclaimPolicy v1.PersistentVolumeReclaimPolicy `json:"reclaim_policy"`
 }
 
-func NewPersistentVolume(kubeClient *kubernetes.KubeClient, sendResponse websocket.SendResponse) *PersistentVolume {
-	return &PersistentVolume{
+func NewPersistentVolumeClaim(kubeClient *kubernetes.KubeClient, sendResponse websocket.SendResponse) *PersistentVolumeClaim {
+	return &PersistentVolumeClaim{
 		KubeClient:   kubeClient,
 		SendResponse: sendResponse,
 		DynamicResource: NewDynamicResource(kubeClient, &schema.GroupVersionResource{
 			Group:    "",
 			Version:  "v1",
-			Resource: "persistentVolume",
+			Resource: "persistentVolumeClaim",
 		}),
 	}
 }
 
-func (p *PersistentVolume) ToBuildPersistentVolume(pv *v1.PersistentVolume) *BuildPersistentVolume {
-	if pv == nil {
+func (p *PersistentVolumeClaim) ToBuildPersistentVolumeClaim(pvc *v1.PersistentVolumeClaim) *BuildPersistentVolumeClaim {
+	if pvc == nil {
 		return nil
 	}
-	var volumeSize string
-	if size, ok := pv.Spec.Capacity["storage"]; !ok {
-		volumeSize = ""
-	} else {
-		volumeSize = size.String()
-	}
-	pvData := &BuildPersistentVolume{
-		Name:          pv.Name,
-		Status:        string(pv.Status.Phase),
-		StorageClass:  pv.Spec.StorageClassName,
-		Capacity:      volumeSize,
-		Claim:         "",
-		AccessModes:   pv.Spec.AccessModes,
-		ReclaimPolicy: pv.Spec.PersistentVolumeReclaimPolicy,
-		CreateTime:    fmt.Sprint(pv.CreationTimestamp),
+
+	pvcData := &BuildPersistentVolumeClaim{
+		Name:        pvc.Name,
+		Status:      string(pvc.Status.Phase),
+		Claim:       "",
+		AccessModes: pvc.Spec.AccessModes,
+		CreateTime:  fmt.Sprint(pvc.CreationTimestamp),
+		Namespace:   pvc.Namespace,
 	}
 
-	return pvData
+	return pvcData
 }
 
-func (p *PersistentVolume) List(requestParams interface{}) *utils.Response {
-	persistentVolumeList, err := p.KubeClient.InformerRegistry.PersistentVolumeInformer().Lister().List(labels.Everything())
+func (p *PersistentVolumeClaim) List(requestParams interface{}) *utils.Response {
+	persistentVolumeClaimList, err := p.KubeClient.InformerRegistry.PersistentVolumeClaimInformer().Lister().List(labels.Everything())
 	if err != nil {
 		return &utils.Response{
 			Code: code.ListError,
 			Msg:  err.Error(),
 		}
 	}
-	var persistentVolumeResource []*BuildPersistentVolume
-	for _, pv := range persistentVolumeList {
-		persistentVolumeResource = append(persistentVolumeResource, p.ToBuildPersistentVolume(pv))
+	var persistentVolumeClaimResource []*BuildPersistentVolumeClaim
+	for _, pvc := range persistentVolumeClaimList {
+		persistentVolumeClaimResource = append(persistentVolumeClaimResource, p.ToBuildPersistentVolumeClaim(pvc))
 	}
-	return &utils.Response{Code: code.Success, Msg: "Success", Data: persistentVolumeResource}
+	return &utils.Response{Code: code.Success, Msg: "Success", Data: persistentVolumeClaimResource}
 }
 
-func (p *PersistentVolume) Get(requestParams interface{}) *utils.Response {
+func (p *PersistentVolumeClaim) Get(requestParams interface{}) *utils.Response {
 	queryParams := &ConfigMapQueryParams{}
 	json.Unmarshal(requestParams.([]byte), queryParams)
 	if queryParams.Name == "" {
 		return &utils.Response{Code: code.ParamsError, Msg: "Name is blank"}
 	}
-	pv, err := p.KubeClient.PersistentVolumeInformer().Lister().Get(queryParams.Name)
+	if queryParams.Namespace == "" {
+		return &utils.Response{Code: code.ParamsError, Msg: "Namespace is blank"}
+	}
+	pvc, err := p.KubeClient.InformerRegistry.PersistentVolumeClaimInformer().Lister().PersistentVolumeClaims(queryParams.Namespace).Get(queryParams.Name)
 	if err != nil {
 		return &utils.Response{Code: code.GetError, Msg: err.Error()}
 	}
@@ -104,7 +101,7 @@ func (p *PersistentVolume) Get(requestParams interface{}) *utils.Response {
 		}
 
 		encoder := codecs.EncoderForVersion(info.Serializer, p.GroupVersion())
-		d, e := runtime.Encode(encoder, pv)
+		d, e := runtime.Encode(encoder, pvc)
 		if e != nil {
 			klog.Error(e)
 			return &utils.Response{Code: code.EncodeError, Msg: e.Error()}
@@ -113,5 +110,5 @@ func (p *PersistentVolume) Get(requestParams interface{}) *utils.Response {
 		return &utils.Response{Code: code.Success, Msg: "Success", Data: string(d)}
 	}
 
-	return &utils.Response{Code: code.Success, Msg: "Success", Data: pv}
+	return &utils.Response{Code: code.Success, Msg: "Success", Data: pvc}
 }
