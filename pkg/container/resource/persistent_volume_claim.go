@@ -25,7 +25,6 @@ type BuildPersistentVolumeClaim struct {
 	Name          string                           `json:"name"`
 	Namespace     string                           `json:"namespace"`
 	Status        string                           `json:"status"`
-	Claim         string                           `json:"claim"`
 	StorageClass  string                           `json:"storage_class"`
 	Capacity      string                           `json:"capacity"`
 	AccessModes   []v1.PersistentVolumeAccessMode  `json:"access_modes"`
@@ -53,7 +52,6 @@ func (p *PersistentVolumeClaim) ToBuildPersistentVolumeClaim(pvc *v1.PersistentV
 	pvcData := &BuildPersistentVolumeClaim{
 		Name:        pvc.Name,
 		Status:      string(pvc.Status.Phase),
-		Claim:       "",
 		AccessModes: pvc.Spec.AccessModes,
 		CreateTime:  fmt.Sprint(pvc.CreationTimestamp),
 		Namespace:   pvc.Namespace,
