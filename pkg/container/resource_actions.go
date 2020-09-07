@@ -147,6 +147,13 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 	}
 	actionHandlers["storageClass"] = storageClassActions
 
+	hpa := resource.NewHorizontalPodAutoscaler(kubeClient, sendResponse)
+	hpaActions := ActionHandler{
+		LIST: hpa.List,
+		GET:  hpa.Get,
+	}
+	actionHandlers["horizontalPodAutoscaler"] = hpaActions
+
 	return &ResourceActions{
 		KubeClient:            kubeClient,
 		ResourceActionHandler: actionHandlers,

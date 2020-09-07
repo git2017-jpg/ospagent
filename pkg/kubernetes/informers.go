@@ -5,6 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	appsv1 "k8s.io/client-go/informers/apps/v1"
+	hpa "k8s.io/client-go/informers/autoscaling/v1"
 	batchv1 "k8s.io/client-go/informers/batch/v1"
 	batchv1beta1 "k8s.io/client-go/informers/batch/v1beta1"
 	"k8s.io/client-go/informers/core/v1"
@@ -27,22 +28,24 @@ type InformerRegistry interface {
 	DaemonSetInformer() appsv1.DaemonSetInformer
 	JobInformer() batchv1.JobInformer
 	CronJobInformer() batchv1beta1.CronJobInformer
+	HorizontalPodAutoscalerInformer() hpa.HorizontalPodAutoscalerInformer
 }
 
 type InformerRegistryImpl struct {
-	podInformer                   v1.PodInformer
-	nameSpaceInformer             v1.NamespaceInformer
-	nodeInformer                  v1.NodeInformer
-	eventInformer                 v1.EventInformer
-	deploymentInformer            appsv1.DeploymentInformer
-	persistentVolumeInformer      v1.PersistentVolumeInformer
-	persistentVolumeClaimInformer v1.PersistentVolumeClaimInformer
-	storageClassInformer          storage.StorageClassInformer
-	configMapInformer             v1.ConfigMapInformer
-	statefulSetInformer           appsv1.StatefulSetInformer
-	daemonSetInformer             appsv1.DaemonSetInformer
-	jobInformer                   batchv1.JobInformer
-	cronJobInformer               batchv1beta1.CronJobInformer
+	podInformer                     v1.PodInformer
+	nameSpaceInformer               v1.NamespaceInformer
+	nodeInformer                    v1.NodeInformer
+	eventInformer                   v1.EventInformer
+	deploymentInformer              appsv1.DeploymentInformer
+	persistentVolumeInformer        v1.PersistentVolumeInformer
+	persistentVolumeClaimInformer   v1.PersistentVolumeClaimInformer
+	storageClassInformer            storage.StorageClassInformer
+	configMapInformer               v1.ConfigMapInformer
+	statefulSetInformer             appsv1.StatefulSetInformer
+	daemonSetInformer               appsv1.DaemonSetInformer
+	jobInformer                     batchv1.JobInformer
+	cronJobInformer                 batchv1beta1.CronJobInformer
+	horizontalPodAutoscalerInformer hpa.HorizontalPodAutoscalerInformer
 }
 
 func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}) (InformerRegistry, error) {
@@ -109,20 +112,26 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 		return nil, err
 	}
 
+	horizontalPodAutoscalerInformer, err := NewHorizontalPodAutoscalerInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+
 	return &InformerRegistryImpl{
-		podInformer:                   podInformer,
-		nameSpaceInformer:             nsInformer,
-		nodeInformer:                  nodeInformer,
-		eventInformer:                 eventInformer,
-		deploymentInformer:            deploymentInformer,
-		persistentVolumeInformer:      persistentVolumeInformer,
-		persistentVolumeClaimInformer: persistentVolumeClaimInformer,
-		configMapInformer:             configMapInformer,
-		statefulSetInformer:           statefulSetInformer,
-		daemonSetInformer:             daemonSetInformer,
-		jobInformer:                   jobInformer,
-		cronJobInformer:               cronJobInformer,
-		storageClassInformer:          storageClassInformer,
+		podInformer:                     podInformer,
+		nameSpaceInformer:               nsInformer,
+		nodeInformer:                    nodeInformer,
+		eventInformer:                   eventInformer,
+		deploymentInformer:              deploymentInformer,
+		persistentVolumeInformer:        persistentVolumeInformer,
+		persistentVolumeClaimInformer:   persistentVolumeClaimInformer,
+		configMapInformer:               configMapInformer,
+		statefulSetInformer:             statefulSetInformer,
+		daemonSetInformer:               daemonSetInformer,
+		jobInformer:                     jobInformer,
+		cronJobInformer:                 cronJobInformer,
+		storageClassInformer:            storageClassInformer,
+		horizontalPodAutoscalerInformer: horizontalPodAutoscalerInformer,
 	}, nil
 }
 
@@ -299,6 +308,19 @@ func NewStorageClassInformer(factory informers.SharedInformerFactory, stopCh <-c
 	return storageClassInformer, nil
 }
 
+func NewHorizontalPodAutoscalerInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (hpa.HorizontalPodAutoscalerInformer, error) {
+	horizontalPodAutoscalerInformer := factory.Autoscaling().V1().HorizontalPodAutoscalers()
+	informer := horizontalPodAutoscalerInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return horizontalPodAutoscalerInformer, nil
+}
+
 func (r *InformerRegistryImpl) PodInformer() v1.PodInformer {
 	return r.podInformer
 }
@@ -349,4 +371,8 @@ func (r *InformerRegistryImpl) CronJobInformer() batchv1beta1.CronJobInformer {
 
 func (r *InformerRegistryImpl) StorageClassInformer() storage.StorageClassInformer {
 	return r.storageClassInformer
+}
+
+func (r *InformerRegistryImpl) HorizontalPodAutoscalerInformer() hpa.HorizontalPodAutoscalerInformer {
+	return r.horizontalPodAutoscalerInformer
 }
