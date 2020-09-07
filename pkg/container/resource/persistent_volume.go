@@ -59,7 +59,7 @@ func (p *PersistentVolume) ToBuildPersistentVolume(pv *v1.PersistentVolume) *Bui
 		Status:        string(pv.Status.Phase),
 		StorageClass:  pv.Spec.StorageClassName,
 		Capacity:      volumeSize,
-		Claim:         "",
+		Claim:         pv.Spec.ClaimRef.Name,
 		AccessModes:   pv.Spec.AccessModes,
 		ReclaimPolicy: pv.Spec.PersistentVolumeReclaimPolicy,
 		CreateTime:    fmt.Sprint(pv.CreationTimestamp),

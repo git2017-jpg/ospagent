@@ -140,6 +140,13 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 	}
 	actionHandlers["persistentVolumeClaim"] = persistentVolumeClaimActions
 
+	storageClass := resource.NewStorageClass(kubeClient, sendResponse)
+	storageClassActions := ActionHandler{
+		LIST: storageClass.List,
+		GET:  storageClass.Get,
+	}
+	actionHandlers["storageClass"] = storageClassActions
+
 	return &ResourceActions{
 		KubeClient:            kubeClient,
 		ResourceActionHandler: actionHandlers,

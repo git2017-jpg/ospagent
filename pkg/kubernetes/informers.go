@@ -8,6 +8,7 @@ import (
 	batchv1 "k8s.io/client-go/informers/batch/v1"
 	batchv1beta1 "k8s.io/client-go/informers/batch/v1beta1"
 	"k8s.io/client-go/informers/core/v1"
+	storage "k8s.io/client-go/informers/storage/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -20,6 +21,7 @@ type InformerRegistry interface {
 	DeploymentInformer() appsv1.DeploymentInformer
 	PersistentVolumeInformer() v1.PersistentVolumeInformer
 	PersistentVolumeClaimInformer() v1.PersistentVolumeClaimInformer
+	StorageClassInformer() storage.StorageClassInformer
 	ConfigMapInformer() v1.ConfigMapInformer
 	StatefulSetInformer() appsv1.StatefulSetInformer
 	DaemonSetInformer() appsv1.DaemonSetInformer
@@ -35,6 +37,7 @@ type InformerRegistryImpl struct {
 	deploymentInformer            appsv1.DeploymentInformer
 	persistentVolumeInformer      v1.PersistentVolumeInformer
 	persistentVolumeClaimInformer v1.PersistentVolumeClaimInformer
+	storageClassInformer          storage.StorageClassInformer
 	configMapInformer             v1.ConfigMapInformer
 	statefulSetInformer           appsv1.StatefulSetInformer
 	daemonSetInformer             appsv1.DaemonSetInformer
@@ -101,6 +104,11 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 		return nil, err
 	}
 
+	storageClassInformer, err := NewStorageClassInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+
 	return &InformerRegistryImpl{
 		podInformer:                   podInformer,
 		nameSpaceInformer:             nsInformer,
@@ -114,6 +122,7 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 		daemonSetInformer:             daemonSetInformer,
 		jobInformer:                   jobInformer,
 		cronJobInformer:               cronJobInformer,
+		storageClassInformer:          storageClassInformer,
 	}, nil
 }
 
@@ -277,6 +286,19 @@ func NewCronJobInformer(factory informers.SharedInformerFactory, stopCh <-chan s
 	return cronJobInformer, nil
 }
 
+func NewStorageClassInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (storage.StorageClassInformer, error) {
+	storageClassInformer := factory.Storage().V1().StorageClasses()
+	informer := storageClassInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return storageClassInformer, nil
+}
+
 func (r *InformerRegistryImpl) PodInformer() v1.PodInformer {
 	return r.podInformer
 }
@@ -323,4 +345,8 @@ func (r *InformerRegistryImpl) JobInformer() batchv1.JobInformer {
 
 func (r *InformerRegistryImpl) CronJobInformer() batchv1beta1.CronJobInformer {
 	return r.cronJobInformer
+}
+
+func (r *InformerRegistryImpl) StorageClassInformer() storage.StorageClassInformer {
+	return r.storageClassInformer
 }
