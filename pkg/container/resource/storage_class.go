@@ -42,7 +42,7 @@ func NewStorageClass(kubeClient *kubernetes.KubeClient, sendResponse websocket.S
 		DynamicResource: NewDynamicResource(kubeClient, &schema.GroupVersionResource{
 			Group:    "",
 			Version:  "v1",
-			Resource: "storageClass",
+			Resource: "storageclasses",
 		}),
 	}
 }

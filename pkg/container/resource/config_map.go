@@ -64,7 +64,7 @@ func NewConfigMap(kubeClient *kubernetes.KubeClient, sendResponse websocket.Send
 		DynamicResource: NewDynamicResource(kubeClient, &schema.GroupVersionResource{
 			Group:    "",
 			Version:  "v1",
-			Resource: "configMap",
+			Resource: "configmaps",
 		}),
 	}
 }
@@ -116,6 +116,6 @@ func (c *ConfigMap) Get(requestParams interface{}) *utils.Response {
 		klog.Info(d)
 		return &utils.Response{Code: code.Success, Msg: "Success", Data: string(d)}
 	}
-
+	fmt.Println(configMap)
 	return &utils.Response{Code: code.Success, Msg: "Success", Data: configMap}
 }
