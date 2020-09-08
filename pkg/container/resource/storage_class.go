@@ -7,6 +7,7 @@ import (
 	"github.com/openspacee/ospagent/pkg/utils"
 	"github.com/openspacee/ospagent/pkg/utils/code"
 	"github.com/openspacee/ospagent/pkg/websocket"
+	core "k8s.io/api/core/v1"
 	"k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -22,10 +23,16 @@ type StorageClass struct {
 }
 
 type BuildStorageClass struct {
-	Name        string `json:"name"`
-	Status      string `json:"status"`
-	CreateTime  string `json:"create_time"`
-	Provisioner string `json:"provisioner"`
+	Name          string                              `json:"name"`
+	CreateTime    string                              `json:"create_time"`
+	Provisioner   string                              `json:"provisioner"`
+	ReclaimPolicy *core.PersistentVolumeReclaimPolicy `json:"reclaim_policy"`
+	Default       string                              `json:"default"`
+}
+
+type StorageClassQueryParams struct {
+	Name   string `json:"name"`
+	Output string `json:"output"`
 }
 
 func NewStorageClass(kubeClient *kubernetes.KubeClient, sendResponse websocket.SendResponse) *StorageClass {
@@ -46,10 +53,10 @@ func (s *StorageClass) ToBuildStorageClass(sc *v1.StorageClass) *BuildStorageCla
 	}
 
 	pvData := &BuildStorageClass{
-		Name:        sc.Name,
-		Status:      "",
-		CreateTime:  fmt.Sprint(sc.CreationTimestamp),
-		Provisioner: sc.Provisioner,
+		Name:          sc.Name,
+		CreateTime:    fmt.Sprint(sc.CreationTimestamp),
+		Provisioner:   sc.Provisioner,
+		ReclaimPolicy: sc.ReclaimPolicy,
 	}
 
 	return pvData
@@ -71,7 +78,7 @@ func (s *StorageClass) List(requestParams interface{}) *utils.Response {
 }
 
 func (s *StorageClass) Get(requestParams interface{}) *utils.Response {
-	queryParams := &ConfigMapQueryParams{}
+	queryParams := &StorageClassQueryParams{}
 	json.Unmarshal(requestParams.([]byte), queryParams)
 	if queryParams.Name == "" {
 		return &utils.Response{Code: code.ParamsError, Msg: "Name is blank"}
