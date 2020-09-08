@@ -48,18 +48,21 @@ func (p *PersistentVolume) ToBuildPersistentVolume(pv *v1.PersistentVolume) *Bui
 	if pv == nil {
 		return nil
 	}
-	var volumeSize string
+	var volumeSize, claimName string
 	if size, ok := pv.Spec.Capacity["storage"]; !ok {
 		volumeSize = ""
 	} else {
 		volumeSize = size.String()
+	}
+	if (pv.Spec.ClaimRef) != nil {
+		claimName = pv.Spec.ClaimRef.Name
 	}
 	pvData := &BuildPersistentVolume{
 		Name:          pv.Name,
 		Status:        string(pv.Status.Phase),
 		StorageClass:  pv.Spec.StorageClassName,
 		Capacity:      volumeSize,
-		Claim:         pv.Spec.ClaimRef.Name,
+		Claim:         claimName,
 		AccessModes:   pv.Spec.AccessModes,
 		ReclaimPolicy: pv.Spec.PersistentVolumeReclaimPolicy,
 		CreateTime:    fmt.Sprint(pv.CreationTimestamp),
