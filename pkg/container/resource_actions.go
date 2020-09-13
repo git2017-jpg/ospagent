@@ -154,6 +154,42 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 	}
 	actionHandlers["horizontalPodAutoscaler"] = hpaActions
 
+	service := resource.NewService(kubeClient, watch)
+	serviceActions := ActionHandler{
+		LIST:       service.List,
+		GET:        service.Get,
+		UPDATEYAML: service.UpdateYaml,
+		DELETE:     service.Delete,
+	}
+	actionHandlers["service"] = serviceActions
+
+	ingress := resource.NewIngress(kubeClient, watch)
+	ingressActions := ActionHandler{
+		LIST:       ingress.List,
+		GET:        ingress.Get,
+		UPDATEYAML: ingress.UpdateYaml,
+		DELETE:     ingress.Delete,
+	}
+	actionHandlers["ingress"] = ingressActions
+
+	endpoints := resource.NewEndpoints(kubeClient, watch)
+	endpointsActions := ActionHandler{
+		LIST:       endpoints.List,
+		GET:        endpoints.Get,
+		UPDATEYAML: endpoints.UpdateYaml,
+		DELETE:     endpoints.Delete,
+	}
+	actionHandlers["endpoints"] = endpointsActions
+
+	networkpolicy := resource.NewNetworkPolicy(kubeClient, watch)
+	networkpolicyActions := ActionHandler{
+		LIST:       networkpolicy.List,
+		GET:        networkpolicy.Get,
+		UPDATEYAML: networkpolicy.UpdateYaml,
+		DELETE:     networkpolicy.Delete,
+	}
+	actionHandlers["networkpolicy"] = networkpolicyActions
+
 	return &ResourceActions{
 		KubeClient:            kubeClient,
 		ResourceActionHandler: actionHandlers,

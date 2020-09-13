@@ -81,6 +81,7 @@ type BuildPod struct {
 	Containers      []*BuildContainer `json:"containers"`
 	InitContainers  []*BuildContainer `json:"init_containers"`
 	Controlled      string            `json:"controlled"`
+	ControlledName  string            `json:"controlled_name"`
 	Qos             string            `json:"qos"`
 	Created         metav1.Time       `json:"created"`
 	Status          string            `json:"status"`
@@ -136,8 +137,10 @@ func (p *Pod) ToBuildPod(pod *v1.Pod) *BuildPod {
 	}
 	cn += len(initContainers)
 	var controlled = ""
+	var controlledName = ""
 	if len(pod.ObjectMeta.OwnerReferences) > 0 {
 		controlled = pod.ObjectMeta.OwnerReferences[0].Kind
+		controlledName = pod.ObjectMeta.OwnerReferences[0].Name
 	}
 
 	return &BuildPod{
@@ -147,6 +150,7 @@ func (p *Pod) ToBuildPod(pod *v1.Pod) *BuildPod {
 		Containers:     containers,
 		InitContainers: initContainers,
 		Controlled:     controlled,
+		ControlledName: controlledName,
 		Qos:            string(pod.Status.QOSClass),
 		Status:         string(pod.Status.Phase),
 		Ip:             pod.Status.PodIP,

@@ -9,6 +9,8 @@ import (
 	batchv1 "k8s.io/client-go/informers/batch/v1"
 	batchv1beta1 "k8s.io/client-go/informers/batch/v1beta1"
 	"k8s.io/client-go/informers/core/v1"
+	extv1betav1 "k8s.io/client-go/informers/extensions/v1beta1"
+	networkv1 "k8s.io/client-go/informers/networking/v1"
 	storage "k8s.io/client-go/informers/storage/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -28,7 +30,11 @@ type InformerRegistry interface {
 	DaemonSetInformer() appsv1.DaemonSetInformer
 	JobInformer() batchv1.JobInformer
 	CronJobInformer() batchv1beta1.CronJobInformer
+	ServiceInformer() v1.ServiceInformer
+	IngressInformer() extv1betav1.IngressInformer
+	NetworkPolicyInformer() networkv1.NetworkPolicyInformer
 	HorizontalPodAutoscalerInformer() hpa.HorizontalPodAutoscalerInformer
+	EndpointsInformer() v1.EndpointsInformer
 }
 
 type InformerRegistryImpl struct {
@@ -46,6 +52,10 @@ type InformerRegistryImpl struct {
 	jobInformer                     batchv1.JobInformer
 	cronJobInformer                 batchv1beta1.CronJobInformer
 	horizontalPodAutoscalerInformer hpa.HorizontalPodAutoscalerInformer
+	serviceInformer                 v1.ServiceInformer
+	ingressInformer                 extv1betav1.IngressInformer
+	networkPolicyInformer           networkv1.NetworkPolicyInformer
+	endpointsInformer               v1.EndpointsInformer
 }
 
 func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}) (InformerRegistry, error) {
@@ -117,6 +127,26 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 		return nil, err
 	}
 
+	serviceInformer, err := NewServiceInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+
+	ingressInformer, err := NewIngressInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+
+	networkPolicyInformer, err := NewNetworkPolicyInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+
+	endpointsInformer, err := NewEndpointsInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+
 	return &InformerRegistryImpl{
 		podInformer:                     podInformer,
 		nameSpaceInformer:               nsInformer,
@@ -132,6 +162,10 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 		cronJobInformer:                 cronJobInformer,
 		storageClassInformer:            storageClassInformer,
 		horizontalPodAutoscalerInformer: horizontalPodAutoscalerInformer,
+		serviceInformer:                 serviceInformer,
+		ingressInformer:                 ingressInformer,
+		networkPolicyInformer:           networkPolicyInformer,
+		endpointsInformer:               endpointsInformer,
 	}, nil
 }
 
@@ -321,6 +355,58 @@ func NewHorizontalPodAutoscalerInformer(factory informers.SharedInformerFactory,
 	return horizontalPodAutoscalerInformer, nil
 }
 
+func NewServiceInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (v1.ServiceInformer, error) {
+	serviceInformer := factory.Core().V1().Services()
+	informer := serviceInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return serviceInformer, nil
+}
+
+func NewIngressInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (extv1betav1.IngressInformer, error) {
+	ingressInformer := factory.Extensions().V1beta1().Ingresses()
+	informer := ingressInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return ingressInformer, nil
+}
+
+func NewNetworkPolicyInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (networkv1.NetworkPolicyInformer, error) {
+	networkPolicyInformer := factory.Networking().V1().NetworkPolicies()
+	informer := networkPolicyInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return networkPolicyInformer, nil
+}
+
+func NewEndpointsInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (v1.EndpointsInformer, error) {
+	endpointsInformer := factory.Core().V1().Endpoints()
+	informer := endpointsInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return endpointsInformer, nil
+}
+
 func (r *InformerRegistryImpl) PodInformer() v1.PodInformer {
 	return r.podInformer
 }
@@ -375,4 +461,20 @@ func (r *InformerRegistryImpl) StorageClassInformer() storage.StorageClassInform
 
 func (r *InformerRegistryImpl) HorizontalPodAutoscalerInformer() hpa.HorizontalPodAutoscalerInformer {
 	return r.horizontalPodAutoscalerInformer
+}
+
+func (r *InformerRegistryImpl) ServiceInformer() v1.ServiceInformer {
+	return r.serviceInformer
+}
+
+func (r *InformerRegistryImpl) IngressInformer() extv1betav1.IngressInformer {
+	return r.ingressInformer
+}
+
+func (r *InformerRegistryImpl) NetworkPolicyInformer() networkv1.NetworkPolicyInformer {
+	return r.networkPolicyInformer
+}
+
+func (r *InformerRegistryImpl) EndpointsInformer() v1.EndpointsInformer {
+	return r.endpointsInformer
 }
