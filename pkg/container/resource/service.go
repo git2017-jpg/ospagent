@@ -46,15 +46,16 @@ func (s *Service) DoWatch() {
 }
 
 type BuildService struct {
-	UID        string               `json:"uid"`
-	Name       string               `json:"name"`
-	Namespace  string               `json:"namespace"`
-	Type       string               `json:"type"`
-	ClusterIP  string               `json:"cluster_ip"`
-	Ports      []corev1.ServicePort `json:"ports"`
-	ExternalIP []string             `json:"external_ip"`
-	Selector   map[string]string    `json:"selector"`
-	Created    metav1.Time          `json:"created"`
+	UID             string               `json:"uid"`
+	Name            string               `json:"name"`
+	Namespace       string               `json:"namespace"`
+	Type            string               `json:"type"`
+	ClusterIP       string               `json:"cluster_ip"`
+	Ports           []corev1.ServicePort `json:"ports"`
+	ExternalIP      []string             `json:"external_ip"`
+	Selector        map[string]string    `json:"selector"`
+	ResourceVersion string               `json:"resource_version"`
+	Created         metav1.Time          `json:"created"`
 }
 
 func (s *Service) ToBuildService(service *corev1.Service) *BuildService {
@@ -62,15 +63,16 @@ func (s *Service) ToBuildService(service *corev1.Service) *BuildService {
 		return nil
 	}
 	data := &BuildService{
-		UID:        string(service.UID),
-		Name:       service.Name,
-		Namespace:  service.Namespace,
-		Type:       string(service.Spec.Type),
-		ClusterIP:  string(service.Spec.ClusterIP),
-		Ports:      service.Spec.Ports,
-		ExternalIP: service.Spec.ExternalIPs,
-		Selector:   service.Spec.Selector,
-		Created:    service.CreationTimestamp,
+		UID:             string(service.UID),
+		Name:            service.Name,
+		Namespace:       service.Namespace,
+		Type:            string(service.Spec.Type),
+		ClusterIP:       string(service.Spec.ClusterIP),
+		Ports:           service.Spec.Ports,
+		ExternalIP:      service.Spec.ExternalIPs,
+		Selector:        service.Spec.Selector,
+		Created:         service.CreationTimestamp,
+		ResourceVersion: service.ResourceVersion,
 	}
 
 	return data

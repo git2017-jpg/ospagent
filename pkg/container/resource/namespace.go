@@ -2,6 +2,7 @@ package resource
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/openspacee/ospagent/pkg/kubernetes"
 	"github.com/openspacee/ospagent/pkg/utils"
 	"github.com/openspacee/ospagent/pkg/utils/code"
@@ -9,14 +10,18 @@ import (
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog"
 	"strings"
 )
 
 type Namespace struct {
-	*kubernetes.KubeClient
 	websocket.SendResponse
 	watch *WatchResource
+	*DynamicResource
 }
 
 func NewNamespace(
@@ -25,9 +30,13 @@ func NewNamespace(
 	watch *WatchResource) *Namespace {
 
 	ns := &Namespace{
-		KubeClient:   kubeClient,
 		SendResponse: sendResponse,
 		watch:        watch,
+		DynamicResource: NewDynamicResource(kubeClient, &schema.GroupVersionResource{
+			Group:    "",
+			Version:  "v1",
+			Resource: "namespaces",
+		}),
 	}
 	ns.DoWatch()
 	return ns
@@ -48,10 +57,12 @@ type NsQueryParams struct {
 }
 
 type BuildNamespace struct {
-	UID     string      `json:"uid"`
-	Name    string      `json:"name"`
-	Created metav1.Time `json:"created"`
-	Status  string      `json:"status"`
+	UID             string            `json:"uid"`
+	Name            string            `json:"name"`
+	Created         metav1.Time       `json:"created"`
+	Status          string            `json:"status"`
+	Labels          map[string]string `json:"labels"`
+	ResourceVersion string            `json:"resource_version"`
 }
 
 func (n *Namespace) ToBuildNamespace(ns *v1.Namespace) *BuildNamespace {
@@ -59,10 +70,12 @@ func (n *Namespace) ToBuildNamespace(ns *v1.Namespace) *BuildNamespace {
 		return nil
 	}
 	return &BuildNamespace{
-		UID:     string(ns.UID),
-		Name:    ns.Name,
-		Created: ns.CreationTimestamp,
-		Status:  string(ns.Status.Phase),
+		UID:             string(ns.UID),
+		Name:            ns.Name,
+		Created:         ns.CreationTimestamp,
+		Status:          string(ns.Status.Phase),
+		Labels:          ns.Labels,
+		ResourceVersion: ns.ResourceVersion,
 	}
 }
 
@@ -83,4 +96,36 @@ func (n *Namespace) List(requestParams interface{}) *utils.Response {
 		}
 	}
 	return &utils.Response{Code: code.Success, Msg: "Success", Data: nsRes}
+}
+
+func (n *Namespace) Get(requestParams interface{}) *utils.Response {
+	queryParams := &NsQueryParams{}
+	json.Unmarshal(requestParams.([]byte), queryParams)
+	if queryParams.Name == "" {
+		return &utils.Response{Code: code.ParamsError, Msg: "Service name is blank"}
+	}
+	ns, err := n.KubeClient.InformerRegistry.NamespaceInformer().Lister().Get(queryParams.Name)
+	if err != nil {
+		return &utils.Response{Code: code.GetError, Msg: err.Error()}
+	}
+	if queryParams.Output == "yaml" {
+		const mediaType = runtime.ContentTypeYAML
+		rscheme := runtime.NewScheme()
+		v1.AddToScheme(rscheme)
+		codecs := serializer.NewCodecFactory(rscheme)
+		info, ok := runtime.SerializerInfoForMediaType(codecs.SupportedMediaTypes(), mediaType)
+		if !ok {
+			return &utils.Response{Code: code.Success, Msg: fmt.Sprintf("unsupported media type %q", mediaType)}
+		}
+
+		encoder := codecs.EncoderForVersion(info.Serializer, n.GroupVersion())
+		//klog.Info(a)
+		d, e := runtime.Encode(encoder, ns)
+		if e != nil {
+			klog.Error(e)
+			return &utils.Response{Code: code.Success, Msg: e.Error()}
+		}
+		return &utils.Response{Code: code.Success, Msg: "Success", Data: string(d)}
+	}
+	return &utils.Response{Code: code.Success, Msg: "Success", Data: ns}
 }

@@ -45,11 +45,12 @@ func (e *Endpoints) DoWatch() {
 }
 
 type BuildEndpoints struct {
-	UID       string                  `json:"uid"`
-	Name      string                  `json:"name"`
-	Namespace string                  `json:"namespace"`
-	Subsets   []corev1.EndpointSubset `json:"subsets"`
-	Created   metav1.Time             `json:"created"`
+	UID             string                  `json:"uid"`
+	Name            string                  `json:"name"`
+	Namespace       string                  `json:"namespace"`
+	Subsets         []corev1.EndpointSubset `json:"subsets"`
+	Created         metav1.Time             `json:"created"`
+	ResourceVersion string                  `json:"resource_version"`
 }
 
 func (e *Endpoints) ToBuildEndpoints(endpoints *corev1.Endpoints) *BuildEndpoints {
@@ -57,11 +58,12 @@ func (e *Endpoints) ToBuildEndpoints(endpoints *corev1.Endpoints) *BuildEndpoint
 		return nil
 	}
 	data := &BuildEndpoints{
-		UID:       string(endpoints.UID),
-		Name:      endpoints.Name,
-		Namespace: endpoints.Namespace,
-		Subsets:   endpoints.Subsets,
-		Created:   endpoints.CreationTimestamp,
+		UID:             string(endpoints.UID),
+		Name:            endpoints.Name,
+		Namespace:       endpoints.Namespace,
+		Subsets:         endpoints.Subsets,
+		Created:         endpoints.CreationTimestamp,
+		ResourceVersion: endpoints.ResourceVersion,
 	}
 
 	return data

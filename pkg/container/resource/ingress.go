@@ -46,13 +46,14 @@ func (i *Ingress) DoWatch() {
 }
 
 type BuildIngress struct {
-	UID       string                     `json:"uid"`
-	Name      string                     `json:"name"`
-	Namespace string                     `json:"namespace"`
-	Backend   *extv1beta1.IngressBackend `json:"backend"`
-	TLS       []extv1beta1.IngressTLS    `json:"tls"`
-	Rules     []extv1beta1.IngressRule   `json:"rules"`
-	Created   metav1.Time                `json:"created"`
+	UID             string                     `json:"uid"`
+	Name            string                     `json:"name"`
+	Namespace       string                     `json:"namespace"`
+	Backend         *extv1beta1.IngressBackend `json:"backend"`
+	TLS             []extv1beta1.IngressTLS    `json:"tls"`
+	Rules           []extv1beta1.IngressRule   `json:"rules"`
+	Created         metav1.Time                `json:"created"`
+	ResourceVersion string                     `json:"resource_version"`
 }
 
 func (i *Ingress) ToBuildIngress(ingress *extv1beta1.Ingress) *BuildIngress {
@@ -60,13 +61,14 @@ func (i *Ingress) ToBuildIngress(ingress *extv1beta1.Ingress) *BuildIngress {
 		return nil
 	}
 	data := &BuildIngress{
-		UID:       string(ingress.UID),
-		Name:      ingress.Name,
-		Namespace: ingress.Namespace,
-		Backend:   ingress.Spec.Backend,
-		TLS:       ingress.Spec.TLS,
-		Rules:     ingress.Spec.Rules,
-		Created:   ingress.CreationTimestamp,
+		UID:             string(ingress.UID),
+		Name:            ingress.Name,
+		Namespace:       ingress.Namespace,
+		Backend:         ingress.Spec.Backend,
+		TLS:             ingress.Spec.TLS,
+		Rules:           ingress.Spec.Rules,
+		Created:         ingress.CreationTimestamp,
+		ResourceVersion: ingress.ResourceVersion,
 	}
 
 	return data

@@ -46,11 +46,12 @@ func (n *NetworkPolicy) DoWatch() {
 }
 
 type BuildNetworkPolicy struct {
-	UID         string                 `json:"uid"`
-	Name        string                 `json:"name"`
-	Namespace   string                 `json:"namespace"`
-	PolicyTypes []networkv1.PolicyType `json:"policy_types"`
-	Created     metav1.Time            `json:"created"`
+	UID             string                 `json:"uid"`
+	Name            string                 `json:"name"`
+	Namespace       string                 `json:"namespace"`
+	PolicyTypes     []networkv1.PolicyType `json:"policy_types"`
+	Created         metav1.Time            `json:"created"`
+	ResourceVersion string                 `json:"resource_version"`
 }
 
 func (n *NetworkPolicy) ToBuildNetworkPolicy(networkpolicy *networkv1.NetworkPolicy) *BuildNetworkPolicy {
@@ -58,11 +59,12 @@ func (n *NetworkPolicy) ToBuildNetworkPolicy(networkpolicy *networkv1.NetworkPol
 		return nil
 	}
 	data := &BuildNetworkPolicy{
-		UID:         string(networkpolicy.UID),
-		Name:        networkpolicy.Name,
-		Namespace:   networkpolicy.Namespace,
-		PolicyTypes: networkpolicy.Spec.PolicyTypes,
-		Created:     networkpolicy.CreationTimestamp,
+		UID:             string(networkpolicy.UID),
+		Name:            networkpolicy.Name,
+		Namespace:       networkpolicy.Namespace,
+		PolicyTypes:     networkpolicy.Spec.PolicyTypes,
+		Created:         networkpolicy.CreationTimestamp,
+		ResourceVersion: networkpolicy.ResourceVersion,
 	}
 
 	return data

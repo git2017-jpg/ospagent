@@ -53,6 +53,7 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 	ns := resource.NewNamespace(kubeClient, sendResponse, watch)
 	nsActions := ActionHandler{
 		LIST: ns.List,
+		GET:  ns.Get,
 	}
 	actionHandlers["namespace"] = nsActions
 
