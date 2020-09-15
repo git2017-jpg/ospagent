@@ -7,6 +7,7 @@ import (
 	"github.com/openspacee/ospagent/pkg/utils/code"
 	"github.com/openspacee/ospagent/pkg/websocket"
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"math"
 	"time"
@@ -34,6 +35,8 @@ type BuildNode struct {
 	AllocatableCpu   string            `json:"allocatable_cpu"`
 	TotalMem         string            `json:"total_mem"`
 	AllocatableMem   string            `json:"allocatable_mem"`
+	InternalIP       string            `json:"internal_ip"`
+	Created          metav1.Time       `json:"created"`
 }
 
 func (n *Node) ToBuildNode(node *v1.Node) *BuildNode {
@@ -54,6 +57,7 @@ func (n *Node) ToBuildNode(node *v1.Node) *BuildNode {
 		TotalCPU:         node.Status.Capacity.Cpu().String(),
 		AllocatableMem:   node.Status.Allocatable.Memory().String(),
 		TotalMem:         node.Status.Capacity.Memory().String(),
+		Created:          node.CreationTimestamp,
 	}
 	dur := time.Now().Sub(node.CreationTimestamp.Time)
 	nodeData.Age = fmt.Sprintf("%vd", math.Floor(dur.Hours()/24))
@@ -63,6 +67,11 @@ func (n *Node) ToBuildNode(node *v1.Node) *BuildNode {
 			nodeData.Status = "Ready"
 		} else {
 			nodeData.Status = "NotReady"
+		}
+	}
+	for _, i := range node.Status.Addresses {
+		if i.Type == v1.NodeInternalIP {
+			nodeData.InternalIP = i.Address
 		}
 	}
 
