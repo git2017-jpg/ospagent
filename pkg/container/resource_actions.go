@@ -191,6 +191,33 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 	}
 	actionHandlers["networkpolicy"] = networkpolicyActions
 
+	serviceaccount := resource.NewServiceAccount(kubeClient, watch)
+	serviceaccountActions := ActionHandler{
+		LIST:       serviceaccount.List,
+		GET:        serviceaccount.Get,
+		UPDATEYAML: serviceaccount.UpdateYaml,
+		DELETE:     serviceaccount.Delete,
+	}
+	actionHandlers["serviceaccount"] = serviceaccountActions
+
+	rolebinding := resource.NewRoleBinding(kubeClient, watch)
+	rolebindingActions := ActionHandler{
+		LIST:       rolebinding.List,
+		GET:        rolebinding.Get,
+		UPDATEYAML: rolebinding.UpdateYaml,
+		//DELETE:     rolebinding.Delete,
+	}
+	actionHandlers["rolebinding"] = rolebindingActions
+
+	role := resource.NewRole(kubeClient, watch)
+	roleActions := ActionHandler{
+		LIST: role.List,
+		GET:  role.Get,
+		//UPDATEYAML: rolebinding.UpdateYaml,
+		//DELETE:     rolebinding.Delete,
+	}
+	actionHandlers["role"] = roleActions
+
 	return &ResourceActions{
 		KubeClient:            kubeClient,
 		ResourceActionHandler: actionHandlers,

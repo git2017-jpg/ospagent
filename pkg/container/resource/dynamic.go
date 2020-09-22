@@ -60,6 +60,7 @@ type DynamicUpdateParams struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
 	YamlStr   string `json:"yaml"`
+	Kind      string `json:"kind"`
 }
 
 func (d *DynamicResource) UpdateYaml(updateParams interface{}) *utils.Response {
@@ -71,7 +72,12 @@ func (d *DynamicResource) UpdateYaml(updateParams interface{}) *utils.Response {
 		return &utils.Response{Code: code.ParamsError, Msg: fmt.Sprintf("Parse yaml error: %s", err.Error())}
 	}
 	obj := &unstructured.Unstructured{Object: mapObj}
-	_, updateErr := d.DynamicClient.Resource(*d.GroupVersionResource).Namespace(params.Namespace).Update(obj, metav1.UpdateOptions{})
+	var updateErr error
+	if params.Namespace != "" {
+		_, updateErr = d.DynamicClient.Resource(*d.GroupVersionResource).Namespace(params.Namespace).Update(obj, metav1.UpdateOptions{})
+	} else {
+		_, updateErr = d.DynamicClient.Resource(*d.GroupVersionResource).Update(obj, metav1.UpdateOptions{})
+	}
 	if updateErr != nil {
 		klog.Error("Update error: ", updateErr)
 		return &utils.Response{Code: code.UpdateError, Msg: updateErr.Error()}

@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/informers/core/v1"
 	extv1betav1 "k8s.io/client-go/informers/extensions/v1beta1"
 	networkv1 "k8s.io/client-go/informers/networking/v1"
+	rbacv1 "k8s.io/client-go/informers/rbac/v1"
 	storage "k8s.io/client-go/informers/storage/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -35,6 +36,11 @@ type InformerRegistry interface {
 	NetworkPolicyInformer() networkv1.NetworkPolicyInformer
 	HorizontalPodAutoscalerInformer() hpa.HorizontalPodAutoscalerInformer
 	EndpointsInformer() v1.EndpointsInformer
+	ServiceAccountInformer() v1.ServiceAccountInformer
+	ClusterRoleBindingInformer() rbacv1.ClusterRoleBindingInformer
+	ClusterRoleInformer() rbacv1.ClusterRoleInformer
+	RoleBindingInformer() rbacv1.RoleBindingInformer
+	RoleInformer() rbacv1.RoleInformer
 }
 
 type InformerRegistryImpl struct {
@@ -56,6 +62,11 @@ type InformerRegistryImpl struct {
 	ingressInformer                 extv1betav1.IngressInformer
 	networkPolicyInformer           networkv1.NetworkPolicyInformer
 	endpointsInformer               v1.EndpointsInformer
+	serviceAccountInformer          v1.ServiceAccountInformer
+	clusterRoleBindingInformer      rbacv1.ClusterRoleBindingInformer
+	clusterRoleInformer             rbacv1.ClusterRoleInformer
+	roleBindingInformer             rbacv1.RoleBindingInformer
+	roleInformer                    rbacv1.RoleInformer
 }
 
 func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}) (InformerRegistry, error) {
@@ -147,6 +158,28 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 		return nil, err
 	}
 
+	saInformer, err := NewServiceAccountInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+
+	clusterRoleBindingInformer, err := NewClusterRoleBindingInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+	clusterRoleInformer, err := NewClusterRoleInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+	roleBindingInformer, err := NewRoleBindingInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+	roleInformer, err := NewRoleInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
+
 	return &InformerRegistryImpl{
 		podInformer:                     podInformer,
 		nameSpaceInformer:               nsInformer,
@@ -166,6 +199,11 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 		ingressInformer:                 ingressInformer,
 		networkPolicyInformer:           networkPolicyInformer,
 		endpointsInformer:               endpointsInformer,
+		serviceAccountInformer:          saInformer,
+		clusterRoleBindingInformer:      clusterRoleBindingInformer,
+		clusterRoleInformer:             clusterRoleInformer,
+		roleBindingInformer:             roleBindingInformer,
+		roleInformer:                    roleInformer,
 	}, nil
 }
 
@@ -407,6 +445,71 @@ func NewEndpointsInformer(factory informers.SharedInformerFactory, stopCh <-chan
 	return endpointsInformer, nil
 }
 
+func NewServiceAccountInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (v1.ServiceAccountInformer, error) {
+	saInformer := factory.Core().V1().ServiceAccounts()
+	informer := saInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return saInformer, nil
+}
+
+func NewClusterRoleBindingInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (rbacv1.ClusterRoleBindingInformer, error) {
+	crbInformer := factory.Rbac().V1().ClusterRoleBindings()
+	informer := crbInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return crbInformer, nil
+}
+
+func NewClusterRoleInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (rbacv1.ClusterRoleInformer, error) {
+	crInformer := factory.Rbac().V1().ClusterRoles()
+	informer := crInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return crInformer, nil
+}
+
+func NewRoleBindingInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (rbacv1.RoleBindingInformer, error) {
+	rbInformer := factory.Rbac().V1().RoleBindings()
+	informer := rbInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return rbInformer, nil
+}
+
+func NewRoleInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (rbacv1.RoleInformer, error) {
+	rInformer := factory.Rbac().V1().Roles()
+	informer := rInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return rInformer, nil
+}
+
 func (r *InformerRegistryImpl) PodInformer() v1.PodInformer {
 	return r.podInformer
 }
@@ -477,4 +580,24 @@ func (r *InformerRegistryImpl) NetworkPolicyInformer() networkv1.NetworkPolicyIn
 
 func (r *InformerRegistryImpl) EndpointsInformer() v1.EndpointsInformer {
 	return r.endpointsInformer
+}
+
+func (r *InformerRegistryImpl) ServiceAccountInformer() v1.ServiceAccountInformer {
+	return r.serviceAccountInformer
+}
+
+func (r *InformerRegistryImpl) ClusterRoleBindingInformer() rbacv1.ClusterRoleBindingInformer {
+	return r.clusterRoleBindingInformer
+}
+
+func (r *InformerRegistryImpl) ClusterRoleInformer() rbacv1.ClusterRoleInformer {
+	return r.clusterRoleInformer
+}
+
+func (r *InformerRegistryImpl) RoleBindingInformer() rbacv1.RoleBindingInformer {
+	return r.roleBindingInformer
+}
+
+func (r *InformerRegistryImpl) RoleInformer() rbacv1.RoleInformer {
+	return r.roleInformer
 }
