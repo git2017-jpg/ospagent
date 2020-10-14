@@ -218,6 +218,13 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 	}
 	actionHandlers["role"] = roleActions
 
+	secret := resource.NewSecret(kubeClient, watch)
+	secretActions := ActionHandler{
+		LIST: secret.List,
+		GET:  secret.Get,
+	}
+	actionHandlers["secret"] = secretActions
+
 	return &ResourceActions{
 		KubeClient:            kubeClient,
 		ResourceActionHandler: actionHandlers,

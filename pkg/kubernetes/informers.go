@@ -41,6 +41,7 @@ type InformerRegistry interface {
 	ClusterRoleInformer() rbacv1.ClusterRoleInformer
 	RoleBindingInformer() rbacv1.RoleBindingInformer
 	RoleInformer() rbacv1.RoleInformer
+	SecretInformer() v1.SecretInformer
 }
 
 type InformerRegistryImpl struct {
@@ -67,6 +68,7 @@ type InformerRegistryImpl struct {
 	clusterRoleInformer             rbacv1.ClusterRoleInformer
 	roleBindingInformer             rbacv1.RoleBindingInformer
 	roleInformer                    rbacv1.RoleInformer
+	secretInformer                  v1.SecretInformer
 }
 
 func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}) (InformerRegistry, error) {
@@ -179,6 +181,10 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 	if err != nil {
 		return nil, err
 	}
+	secretInformer, err := NewSecretInformer(factory, stopCh)
+	if err != nil {
+		return nil, err
+	}
 
 	return &InformerRegistryImpl{
 		podInformer:                     podInformer,
@@ -204,6 +210,7 @@ func NewInformerRegistry(kubeClient kubernetes.Interface, stopCh <-chan struct{}
 		clusterRoleInformer:             clusterRoleInformer,
 		roleBindingInformer:             roleBindingInformer,
 		roleInformer:                    roleInformer,
+		secretInformer:                  secretInformer,
 	}, nil
 }
 
@@ -510,6 +517,19 @@ func NewRoleInformer(factory informers.SharedInformerFactory, stopCh <-chan stru
 	return rInformer, nil
 }
 
+func NewSecretInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (v1.SecretInformer, error) {
+	sInformer := factory.Core().V1().Secrets()
+	informer := sInformer.Informer()
+	defer runtime.HandleCrash()
+
+	factory.Start(stopCh)
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
+		runtime.HandleError(fmt.Errorf("time out waiting for caches to sync"))
+		return nil, fmt.Errorf("time out waiting for caches to sync")
+	}
+	return sInformer, nil
+}
+
 func (r *InformerRegistryImpl) PodInformer() v1.PodInformer {
 	return r.podInformer
 }
@@ -600,4 +620,8 @@ func (r *InformerRegistryImpl) RoleBindingInformer() rbacv1.RoleBindingInformer 
 
 func (r *InformerRegistryImpl) RoleInformer() rbacv1.RoleInformer {
 	return r.roleInformer
+}
+
+func (r *InformerRegistryImpl) SecretInformer() v1.SecretInformer {
+	return r.secretInformer
 }
