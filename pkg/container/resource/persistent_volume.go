@@ -39,7 +39,7 @@ func NewPersistentVolume(kubeClient *kubernetes.KubeClient, sendResponse websock
 		DynamicResource: NewDynamicResource(kubeClient, &schema.GroupVersionResource{
 			Group:    "",
 			Version:  "v1",
-			Resource: "persistentVolume",
+			Resource: "persistentvolumes",
 		}),
 	}
 }
