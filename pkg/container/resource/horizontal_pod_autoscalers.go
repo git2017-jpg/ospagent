@@ -7,7 +7,6 @@ import (
 	"github.com/openspacee/ospagent/pkg/utils"
 	"github.com/openspacee/ospagent/pkg/utils/code"
 	"github.com/openspacee/ospagent/pkg/websocket"
-	//hpav1 "k8s.io/api/autoscaling/v1"
 	hpav2beta1 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
