@@ -5,7 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	appsv1 "k8s.io/client-go/informers/apps/v1"
-	hpa "k8s.io/client-go/informers/autoscaling/v1"
+	hpa "k8s.io/client-go/informers/autoscaling/v2beta1"
 	batchv1 "k8s.io/client-go/informers/batch/v1"
 	batchv1beta1 "k8s.io/client-go/informers/batch/v1beta1"
 	"k8s.io/client-go/informers/core/v1"
@@ -388,7 +388,7 @@ func NewStorageClassInformer(factory informers.SharedInformerFactory, stopCh <-c
 }
 
 func NewHorizontalPodAutoscalerInformer(factory informers.SharedInformerFactory, stopCh <-chan struct{}) (hpa.HorizontalPodAutoscalerInformer, error) {
-	horizontalPodAutoscalerInformer := factory.Autoscaling().V1().HorizontalPodAutoscalers()
+	horizontalPodAutoscalerInformer := factory.Autoscaling().V2beta1().HorizontalPodAutoscalers()
 	informer := horizontalPodAutoscalerInformer.Informer()
 	defer runtime.HandleCrash()
 

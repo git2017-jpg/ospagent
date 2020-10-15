@@ -104,7 +104,7 @@ func (s *Secret) Get(requestParams interface{}) *utils.Response {
 	if queryParams.Namespace == "" {
 		return &utils.Response{Code: code.ParamsError, Msg: "Namespace is blank"}
 	}
-	secret, err := s.KubeClient.SecretInformer().Lister().Secrets(queryParams.Namespace).Get(queryParams.Name)
+	secret, err := s.KubeClient.InformerRegistry.SecretInformer().Lister().Secrets(queryParams.Namespace).Get(queryParams.Name)
 	if err != nil {
 		return &utils.Response{Code: code.GetError, Msg: err.Error()}
 	}

@@ -7,8 +7,8 @@ import (
 	"github.com/openspacee/ospagent/pkg/utils"
 	"github.com/openspacee/ospagent/pkg/utils/code"
 	"github.com/openspacee/ospagent/pkg/websocket"
-	hpa "k8s.io/api/autoscaling/v1"
-	"k8s.io/api/core/v1"
+	//hpav1 "k8s.io/api/autoscaling/v1"
+	hpav2beta1 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -23,8 +23,15 @@ type HorizontalPodAutoscaler struct {
 }
 
 type BuildHorizontalPodAutoscaler struct {
-	Name      string `json:"name"`
-	NameSpace string `json:"namespace"`
+	Name          string                                   `json:"name"`
+	NameSpace     string                                   `json:"namespace"`
+	MinPods       *int32                                   `json:"min_pods"`
+	MaxPods       int32                                    `json:"max_pods"`
+	Replicas      int32                                    `json:"replicas"`
+	Status        hpav2beta1.HorizontalPodAutoscalerStatus `json:"status"`
+	CreateTime    string                                   `json:"create_time"`
+	TargetCpuPer  *int32                                   `json:"target_cpu_per"`
+	CurrentCpuPer *int32                                   `json:"current_cpu_per"`
 }
 
 type HorizontalPodAutoscalerQueryParams struct {
@@ -33,14 +40,21 @@ type HorizontalPodAutoscalerQueryParams struct {
 	Output    string `json:"output"`
 }
 
-func (h *HorizontalPodAutoscaler) ToBuildHorizontalPodAutoscaler(hpa *hpa.HorizontalPodAutoscaler) *BuildHorizontalPodAutoscaler {
+func (h *HorizontalPodAutoscaler) ToBuildHorizontalPodAutoscaler(hpa *hpav2beta1.HorizontalPodAutoscaler) *BuildHorizontalPodAutoscaler {
 	if hpa == nil {
 		return nil
 	}
 
 	hpaData := &BuildHorizontalPodAutoscaler{
-		Name:      hpa.Name,
-		NameSpace: hpa.Namespace,
+		Name:       hpa.Name,
+		NameSpace:  hpa.Namespace,
+		MinPods:    hpa.Spec.MinReplicas,
+		MaxPods:    hpa.Spec.MaxReplicas,
+		Replicas:   hpa.Status.CurrentReplicas,
+		Status:     hpa.Status,
+		CreateTime: fmt.Sprint(hpa.CreationTimestamp),
+		//TargetCpuPer: 	hpa.Spec.TargetCPUUtilizationPercentage,
+		//CurrentCpuPer:	hpa.Status.CurrentCPUUtilizationPercentage,
 	}
 
 	return hpaData
@@ -51,9 +65,9 @@ func NewHorizontalPodAutoscaler(kubeClient *kubernetes.KubeClient, sendResponse 
 		KubeClient:   kubeClient,
 		SendResponse: sendResponse,
 		DynamicResource: NewDynamicResource(kubeClient, &schema.GroupVersionResource{
-			Group:    "",
-			Version:  "v1",
-			Resource: "horizontalPodAutoscaler",
+			Group:    "autoscaling",
+			Version:  "v2beta1",
+			Resource: "horizontalpodautoscalers",
 		}),
 	}
 }
@@ -82,14 +96,14 @@ func (h *HorizontalPodAutoscaler) Get(requestParams interface{}) *utils.Response
 	if queryParams.Namespace == "" {
 		return &utils.Response{Code: code.ParamsError, Msg: "Namespace is blank"}
 	}
-	Hpa, err := h.KubeClient.HorizontalPodAutoscalerInformer().Lister().HorizontalPodAutoscalers(queryParams.Namespace).Get(queryParams.Name)
+	Hpa, err := h.KubeClient.InformerRegistry.HorizontalPodAutoscalerInformer().Lister().HorizontalPodAutoscalers(queryParams.Namespace).Get(queryParams.Name)
 	if err != nil {
 		return &utils.Response{Code: code.GetError, Msg: err.Error()}
 	}
 	if queryParams.Output == "yaml" {
 		const mediaType = runtime.ContentTypeYAML
 		rscheme := runtime.NewScheme()
-		v1.AddToScheme(rscheme)
+		hpav2beta1.AddToScheme(rscheme)
 		codecs := serializer.NewCodecFactory(rscheme)
 		info, ok := runtime.SerializerInfoForMediaType(codecs.SupportedMediaTypes(), mediaType)
 		if !ok {
