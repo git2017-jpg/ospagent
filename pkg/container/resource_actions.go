@@ -129,15 +129,17 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 
 	persistentVolume := resource.NewPersistentVolume(kubeClient, sendResponse)
 	persistentVolumeActions := ActionHandler{
-		LIST: persistentVolume.List,
-		GET:  persistentVolume.Get,
+		LIST:       persistentVolume.List,
+		GET:        persistentVolume.Get,
+		UPDATEYAML: persistentVolume.UpdateYaml,
 	}
 	actionHandlers["persistentVolume"] = persistentVolumeActions
 
 	persistentVolumeClaim := resource.NewPersistentVolumeClaim(kubeClient, sendResponse)
 	persistentVolumeClaimActions := ActionHandler{
-		LIST: persistentVolumeClaim.List,
-		GET:  persistentVolumeClaim.Get,
+		LIST:       persistentVolumeClaim.List,
+		GET:        persistentVolumeClaim.Get,
+		UPDATEYAML: persistentVolumeClaim.UpdateYaml,
 	}
 	actionHandlers["persistentVolumeClaim"] = persistentVolumeClaimActions
 

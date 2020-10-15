@@ -39,7 +39,7 @@ func NewPersistentVolumeClaim(kubeClient *kubernetes.KubeClient, sendResponse we
 		DynamicResource: NewDynamicResource(kubeClient, &schema.GroupVersionResource{
 			Group:    "",
 			Version:  "v1",
-			Resource: "persistentVolumeClaim",
+			Resource: "persistentvolumeclaims",
 		}),
 	}
 }
