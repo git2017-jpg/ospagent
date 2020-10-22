@@ -37,6 +37,12 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 	}
 	actionHandlers["watch"] = watchActions
 
+	cluster := resource.NewCluster(kubeClient, watch)
+	clusterActions := ActionHandler{
+		GET: cluster.Get,
+	}
+	actionHandlers["cluster"] = clusterActions
+
 	pod := resource.NewPod(kubeClient, sendResponse, watch)
 	podActions := ActionHandler{
 		LIST:       pod.List,
