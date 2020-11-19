@@ -176,6 +176,7 @@ func (p *Pod) List(requestParams interface{}) *utils.Response {
 		}
 	}
 	podList, err := p.KubeClient.InformerRegistry.PodInformer().Lister().Pods(queryParams.Namespace).List(labelSelector)
+	//p.KubeClient.ClientSet.CoreV1().Pods(queryParams.Namespace).List(labelSelector)
 	if err != nil {
 		return &utils.Response{
 			Code: code.ListError,
@@ -329,8 +330,17 @@ func (s *streamHandler) Read(p []byte) (size int, err error) {
 	select {
 	case inData, ok := <-s.InChan:
 		if ok {
-			size = len(inData)
-			copy(p, inData)
+			d, err := base64.StdEncoding.DecodeString(string(inData))
+			if err != nil {
+				klog.Errorf("decode stream input data error: %s", err.Error())
+			} else {
+				klog.Info(string(d))
+				size = len(d)
+				copy(p, d)
+			}
+			//klog.Info(string(inData))
+			//size = len(inData)
+			//copy(p, inData)
 		}
 	}
 	return
