@@ -24,7 +24,7 @@ func NewAgentConfig(opt *config.AgentOptions) (*AgentConfig, error) {
 		ResponseChan: make(chan *utils.TResponse),
 	}
 
-	serverUrl := &url.URL{Scheme: "ws", Host: opt.ServerUrl, Path: "/api/v1/kube/connect"}
+	serverUrl := &url.URL{Scheme: "wss", Host: opt.ServerUrl, Path: "/api/v1/kube/connect"}
 	agentConfig.WebSocket = websocket.NewWebSocket(
 		serverUrl,
 		opt.AgentToken,

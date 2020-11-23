@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"github.com/gorilla/websocket"
 	"github.com/openspacee/ospagent/pkg/utils"
@@ -76,10 +77,11 @@ func (ws *WebSocket) reconnectServer() {
 }
 
 func (ws *WebSocket) connectServer() error {
-	klog.Info("start connect to server", ws.Url.String())
+	klog.Info("start connect to server ", ws.Url.String())
 	wsHeader := http.Header{}
 	wsHeader.Add("token", ws.Token)
-	conn, _, err := websocket.DefaultDialer.Dial(ws.Url.String(), wsHeader)
+	d := &websocket.Dialer{TLSClientConfig: &tls.Config{RootCAs: nil, InsecureSkipVerify: true}}
+	conn, _, err := d.Dial(ws.Url.String(), wsHeader)
 	if err != nil {
 		klog.Infof("connect to server %s error: %v, retry after 5 seconds\n", ws.Url.String(), err)
 		return err
