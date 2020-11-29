@@ -10,6 +10,7 @@ import (
 const (
 	LIST       = "list"
 	GET        = "get"
+	CREATE     = "create"
 	DELETE     = "delete"
 	UPDATEYAML = "update_yaml"
 	UPDATEOBJ  = "update_obj"
@@ -130,6 +131,7 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 		LIST:       configMap.List,
 		GET:        configMap.Get,
 		UPDATEYAML: configMap.UpdateYaml,
+		//CREATE: 	configMap.Create,
 	}
 	actionHandlers["configMap"] = configMapActions
 

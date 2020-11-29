@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 )
 
@@ -34,6 +35,18 @@ type ConfigMapQueryParams struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
 	Output    string `json:"output"`
+}
+
+type ConfigMapUpdateParams struct {
+	Name      string            `json:"name"`
+	Namespace string            `json:"namespace"`
+	Data      map[string]string `json:"data"`
+}
+
+type ConfigMapCreateParams struct {
+	Name      string            `json:"name"`
+	Namespace string            `json:"namespace"`
+	Data      map[string]string `json:"data"`
 }
 
 func (c *ConfigMap) ToBuildConfigMap(cm *v1.ConfigMap) *BuildConfigMap {
@@ -118,4 +131,55 @@ func (c *ConfigMap) Get(requestParams interface{}) *utils.Response {
 	}
 	fmt.Println(configMap)
 	return &utils.Response{Code: code.Success, Msg: "Success", Data: configMap}
+}
+
+func (c *ConfigMap) UpdateObj(updateParams interface{}) *utils.Response {
+	params := &ConfigMapUpdateParams{}
+	json.Unmarshal(updateParams.([]byte), params)
+
+	if params.Name == "" {
+		return &utils.Response{Code: code.ParamsError, Msg: "ConfigMap name is blank"}
+	}
+	if params.Namespace == "" {
+		return &utils.Response{Code: code.ParamsError, Msg: "Namespace is blank"}
+	}
+	if len(params.Data) == 0 {
+		return &utils.Response{Code: code.ParamsError, Msg: "Data is blank"}
+	}
+	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Retrieve the latest version of Deployment before attempting update
+		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
+		result, getErr := c.KubeClient.InformerRegistry.ConfigMapInformer().Lister().ConfigMaps(params.Namespace).Get(params.Name)
+		if getErr != nil {
+			panic(fmt.Errorf("failed to get latest version of Deployment: %v", getErr))
+		}
+
+		result.Data = params.Data
+		_, updateErr := c.ClientSet.CoreV1().ConfigMaps(params.Namespace).Update(result)
+		return updateErr
+	})
+	if retryErr != nil {
+		klog.Errorf("Update failed: %v", retryErr)
+		return &utils.Response{Code: code.ParamsError, Msg: retryErr.Error()}
+	}
+	return &utils.Response{Code: code.Success, Msg: "Success"}
+}
+
+func (c *ConfigMap) Create(createParams interface{}) *utils.Response {
+
+	params := &ConfigMapUpdateParams{}
+	json.Unmarshal(createParams.([]byte), params)
+
+	configMap := v1.ConfigMap{}
+	configMap.APIVersion = "v1"
+	configMap.Kind = "ConfigMap"
+	configMap.Name = params.Name
+	configMap.Data = params.Data
+	configMap.Namespace = params.Namespace
+
+	cm, err := c.ClientSet.CoreV1().ConfigMaps(params.Namespace).Create(&configMap)
+	if err != nil {
+		klog.Errorf("Create ConfigMap failed: %v", err)
+	}
+	return &utils.Response{Code: code.Success, Msg: "Success", Data: cm}
 }
