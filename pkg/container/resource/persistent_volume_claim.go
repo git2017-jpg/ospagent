@@ -8,6 +8,7 @@ import (
 	"github.com/openspacee/ospagent/pkg/utils/code"
 	"github.com/openspacee/ospagent/pkg/websocket"
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -28,7 +29,7 @@ type BuildPersistentVolumeClaim struct {
 	StorageClass  *string                          `json:"storage_class"`
 	Capacity      string                           `json:"capacity"`
 	AccessModes   []v1.PersistentVolumeAccessMode  `json:"access_modes"`
-	CreateTime    string                           `json:"create_time"`
+	CreateTime    metav1.Time                      `json:"create_time"`
 	ReclaimPolicy v1.PersistentVolumeReclaimPolicy `json:"reclaim_policy"`
 }
 
@@ -61,7 +62,7 @@ func (p *PersistentVolumeClaim) ToBuildPersistentVolumeClaim(pvc *v1.PersistentV
 		Name:         pvc.Name,
 		Status:       string(pvc.Status.Phase),
 		AccessModes:  pvc.Spec.AccessModes,
-		CreateTime:   fmt.Sprint(pvc.CreationTimestamp),
+		CreateTime:   pvc.CreationTimestamp,
 		Namespace:    pvc.Namespace,
 		StorageClass: storageClass,
 		Capacity:     volumeSize,

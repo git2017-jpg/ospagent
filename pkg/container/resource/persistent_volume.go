@@ -8,6 +8,7 @@ import (
 	"github.com/openspacee/ospagent/pkg/utils/code"
 	"github.com/openspacee/ospagent/pkg/websocket"
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -22,14 +23,15 @@ type PersistentVolume struct {
 }
 
 type BuildPersistentVolume struct {
-	Name          string                           `json:"name"`
-	Status        string                           `json:"status"`
-	Claim         string                           `json:"claim"`
-	StorageClass  string                           `json:"storage_class"`
-	Capacity      string                           `json:"capacity"`
-	AccessModes   []v1.PersistentVolumeAccessMode  `json:"access_modes"`
-	CreateTime    string                           `json:"create_time"`
-	ReclaimPolicy v1.PersistentVolumeReclaimPolicy `json:"reclaim_policy"`
+	Name           string                           `json:"name"`
+	Status         string                           `json:"status"`
+	Claim          string                           `json:"claim"`
+	ClaimNamespace string                           `json:"claim_namespace"`
+	StorageClass   string                           `json:"storage_class"`
+	Capacity       string                           `json:"capacity"`
+	AccessModes    []v1.PersistentVolumeAccessMode  `json:"access_modes"`
+	CreateTime     metav1.Time                      `json:"create_time"`
+	ReclaimPolicy  v1.PersistentVolumeReclaimPolicy `json:"reclaim_policy"`
 }
 
 func NewPersistentVolume(kubeClient *kubernetes.KubeClient, sendResponse websocket.SendResponse) *PersistentVolume {
@@ -48,7 +50,7 @@ func (p *PersistentVolume) ToBuildPersistentVolume(pv *v1.PersistentVolume) *Bui
 	if pv == nil {
 		return nil
 	}
-	var volumeSize, claimName string
+	var volumeSize, claimName, claimNamespace string
 	if size, ok := pv.Spec.Capacity["storage"]; !ok {
 		volumeSize = ""
 	} else {
@@ -56,16 +58,18 @@ func (p *PersistentVolume) ToBuildPersistentVolume(pv *v1.PersistentVolume) *Bui
 	}
 	if (pv.Spec.ClaimRef) != nil {
 		claimName = pv.Spec.ClaimRef.Name
+		claimNamespace = pv.Spec.ClaimRef.Namespace
 	}
 	pvData := &BuildPersistentVolume{
-		Name:          pv.Name,
-		Status:        string(pv.Status.Phase),
-		StorageClass:  pv.Spec.StorageClassName,
-		Capacity:      volumeSize,
-		Claim:         claimName,
-		AccessModes:   pv.Spec.AccessModes,
-		ReclaimPolicy: pv.Spec.PersistentVolumeReclaimPolicy,
-		CreateTime:    fmt.Sprint(pv.CreationTimestamp),
+		Name:           pv.Name,
+		Status:         string(pv.Status.Phase),
+		StorageClass:   pv.Spec.StorageClassName,
+		Capacity:       volumeSize,
+		Claim:          claimName,
+		ClaimNamespace: claimNamespace,
+		AccessModes:    pv.Spec.AccessModes,
+		ReclaimPolicy:  pv.Spec.PersistentVolumeReclaimPolicy,
+		CreateTime:     pv.CreationTimestamp,
 	}
 
 	return pvData
@@ -112,7 +116,6 @@ func (p *PersistentVolume) Get(requestParams interface{}) *utils.Response {
 			klog.Error(e)
 			return &utils.Response{Code: code.EncodeError, Msg: e.Error()}
 		}
-		klog.Info(d)
 		return &utils.Response{Code: code.Success, Msg: "Success", Data: string(d)}
 	}
 
