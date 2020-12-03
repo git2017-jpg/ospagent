@@ -60,6 +60,7 @@ type PodQueryParams struct {
 	Namespace     string                `json:"namespace"`
 	Output        string                `json:"output"`
 	LabelSelector *metav1.LabelSelector `json:"label_selector"`
+	Names         []string              `json:"names"`
 }
 
 type DeletePodParams struct {
@@ -185,9 +186,13 @@ func (p *Pod) List(requestParams interface{}) *utils.Response {
 	}
 	var podRes []*BuildPod
 	for _, pod := range podList {
-		if queryParams.Name == "" || strings.Contains(pod.Name, queryParams.Name) {
-			podRes = append(podRes, p.ToBuildPod(pod))
+		if queryParams.Name != "" && !strings.Contains(pod.Name, queryParams.Name) {
+			continue
 		}
+		if len(queryParams.Names) > 0 && !utils.Contains(queryParams.Names, pod.Name) {
+			continue
+		}
+		podRes = append(podRes, p.ToBuildPod(pod))
 	}
 	return &utils.Response{Code: code.Success, Msg: "Success", Data: podRes}
 }

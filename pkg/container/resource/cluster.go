@@ -1,12 +1,14 @@
 package resource
 
 import (
+	"encoding/json"
 	"github.com/openspacee/ospagent/pkg/kubernetes"
 	"github.com/openspacee/ospagent/pkg/utils"
 	"github.com/openspacee/ospagent/pkg/utils/code"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog"
 )
 
 type Cluster struct {
@@ -66,7 +68,17 @@ type ClusterQueryParams struct {
 
 func (c *Cluster) Get(requestParams interface{}) *utils.Response {
 	var bc = BuildCluster{}
-	bc.ClusterVersion = "v1.17.0"
+	//bc.ClusterVersion = "v1.17.0"
+	content, err := c.ClientSet.Discovery().RESTClient().Get().AbsPath("/version").DoRaw()
+	if err != nil {
+		klog.Errorf("get version error: %s", err)
+		return &utils.Response{Code: code.ListError, Msg: err.Error()}
+	}
+	klog.Info(string(content))
+	versionRes := make(map[string]string)
+	json.Unmarshal(content, &versionRes)
+	bc.ClusterVersion = versionRes["gitVersion"]
+
 	nodes, err := c.KubeClient.NodeInformer().Lister().List(labels.Everything())
 	if err != nil {
 		return &utils.Response{Code: code.ListError, Msg: err.Error()}
