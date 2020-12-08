@@ -6,23 +6,24 @@ import (
 	"github.com/openspacee/ospagent/pkg/kubernetes"
 	"github.com/openspacee/ospagent/pkg/utils"
 	"github.com/openspacee/ospagent/pkg/utils/code"
-	"github.com/openspacee/ospagent/pkg/websocket"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 )
 
 type PersistentVolumeClaim struct {
 	*kubernetes.KubeClient
-	websocket.SendResponse
+	watch *WatchResource
 	*DynamicResource
 }
 
 type BuildPersistentVolumeClaim struct {
+	UID           string                           `json:"uid"`
 	Name          string                           `json:"name"`
 	Namespace     string                           `json:"namespace"`
 	Status        string                           `json:"status"`
@@ -33,16 +34,27 @@ type BuildPersistentVolumeClaim struct {
 	ReclaimPolicy v1.PersistentVolumeReclaimPolicy `json:"reclaim_policy"`
 }
 
-func NewPersistentVolumeClaim(kubeClient *kubernetes.KubeClient, sendResponse websocket.SendResponse) *PersistentVolumeClaim {
-	return &PersistentVolumeClaim{
-		KubeClient:   kubeClient,
-		SendResponse: sendResponse,
+func NewPersistentVolumeClaim(kubeClient *kubernetes.KubeClient, watch *WatchResource) *PersistentVolumeClaim {
+	pvc := &PersistentVolumeClaim{
+		KubeClient: kubeClient,
+		watch:      watch,
 		DynamicResource: NewDynamicResource(kubeClient, &schema.GroupVersionResource{
 			Group:    "",
 			Version:  "v1",
 			Resource: "persistentvolumeclaims",
 		}),
 	}
+	pvc.DoWatch()
+	return pvc
+}
+
+func (p *PersistentVolumeClaim) DoWatch() {
+	informer := p.KubeClient.PersistentVolumeClaimInformer().Informer()
+	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    p.watch.WatchAdd(utils.WatchPvc),
+		UpdateFunc: p.watch.WatchUpdate(utils.WatchPvc),
+		DeleteFunc: p.watch.WatchDelete(utils.WatchPvc),
+	})
 }
 
 func (p *PersistentVolumeClaim) ToBuildPersistentVolumeClaim(pvc *v1.PersistentVolumeClaim) *BuildPersistentVolumeClaim {
@@ -59,6 +71,7 @@ func (p *PersistentVolumeClaim) ToBuildPersistentVolumeClaim(pvc *v1.PersistentV
 	storageClass := pvc.Spec.StorageClassName
 
 	pvcData := &BuildPersistentVolumeClaim{
+		UID:          string(pvc.UID),
 		Name:         pvc.Name,
 		Status:       string(pvc.Status.Phase),
 		AccessModes:  pvc.Spec.AccessModes,

@@ -64,9 +64,11 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 	}
 	actionHandlers["namespace"] = nsActions
 
-	node := resource.NewNode(kubeClient, sendResponse)
+	node := resource.NewNode(kubeClient, watch)
 	nodeActions := ActionHandler{
-		LIST: node.List,
+		LIST:       node.List,
+		GET:        node.Get,
+		UPDATEYAML: node.UpdateYaml,
 	}
 	actionHandlers["node"] = nodeActions
 
@@ -135,26 +137,30 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 	}
 	actionHandlers["configMap"] = configMapActions
 
-	persistentVolume := resource.NewPersistentVolume(kubeClient, sendResponse)
+	persistentVolume := resource.NewPersistentVolume(kubeClient, watch)
 	persistentVolumeActions := ActionHandler{
 		LIST:       persistentVolume.List,
 		GET:        persistentVolume.Get,
 		UPDATEYAML: persistentVolume.UpdateYaml,
+		DELETE:     persistentVolume.Delete,
 	}
 	actionHandlers["persistentVolume"] = persistentVolumeActions
 
-	persistentVolumeClaim := resource.NewPersistentVolumeClaim(kubeClient, sendResponse)
+	persistentVolumeClaim := resource.NewPersistentVolumeClaim(kubeClient, watch)
 	persistentVolumeClaimActions := ActionHandler{
 		LIST:       persistentVolumeClaim.List,
 		GET:        persistentVolumeClaim.Get,
 		UPDATEYAML: persistentVolumeClaim.UpdateYaml,
+		DELETE:     persistentVolumeClaim.Delete,
 	}
 	actionHandlers["persistentVolumeClaim"] = persistentVolumeClaimActions
 
-	storageClass := resource.NewStorageClass(kubeClient, sendResponse)
+	storageClass := resource.NewStorageClass(kubeClient, watch)
 	storageClassActions := ActionHandler{
-		LIST: storageClass.List,
-		GET:  storageClass.Get,
+		LIST:       storageClass.List,
+		GET:        storageClass.Get,
+		UPDATEYAML: storageClass.UpdateYaml,
+		DELETE:     storageClass.Delete,
 	}
 	actionHandlers["storageClass"] = storageClassActions
 

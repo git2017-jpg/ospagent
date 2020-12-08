@@ -6,28 +6,30 @@ import (
 	"github.com/openspacee/ospagent/pkg/kubernetes"
 	"github.com/openspacee/ospagent/pkg/utils"
 	"github.com/openspacee/ospagent/pkg/utils/code"
-	"github.com/openspacee/ospagent/pkg/websocket"
 	core "k8s.io/api/core/v1"
 	"k8s.io/api/storage/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 )
 
 type StorageClass struct {
 	*kubernetes.KubeClient
-	websocket.SendResponse
+	watch *WatchResource
 	*DynamicResource
 }
 
 type BuildStorageClass struct {
-	Name          string                              `json:"name"`
-	CreateTime    string                              `json:"create_time"`
-	Provisioner   string                              `json:"provisioner"`
-	ReclaimPolicy *core.PersistentVolumeReclaimPolicy `json:"reclaim_policy"`
-	Default       string                              `json:"default"`
+	UID               string                              `json:"uid"`
+	Name              string                              `json:"name"`
+	CreateTime        metav1.Time                         `json:"create_time"`
+	Provisioner       string                              `json:"provisioner"`
+	ReclaimPolicy     *core.PersistentVolumeReclaimPolicy `json:"reclaim_policy"`
+	VolumeBindingMode string                              `json:"binding_mode"`
 }
 
 type StorageClassQueryParams struct {
@@ -35,28 +37,45 @@ type StorageClassQueryParams struct {
 	Output string `json:"output"`
 }
 
-func NewStorageClass(kubeClient *kubernetes.KubeClient, sendResponse websocket.SendResponse) *StorageClass {
-	return &StorageClass{
-		KubeClient:   kubeClient,
-		SendResponse: sendResponse,
+func NewStorageClass(kubeClient *kubernetes.KubeClient, watch *WatchResource) *StorageClass {
+	sc := &StorageClass{
+		KubeClient: kubeClient,
+		watch:      watch,
 		DynamicResource: NewDynamicResource(kubeClient, &schema.GroupVersionResource{
-			Group:    "",
+			Group:    "storage.k8s.io",
 			Version:  "v1",
 			Resource: "storageclasses",
 		}),
 	}
+	sc.DoWatch()
+	return sc
+}
+
+func (s *StorageClass) DoWatch() {
+	informer := s.KubeClient.StorageClassInformer().Informer()
+	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    s.watch.WatchAdd(utils.WatchSc),
+		UpdateFunc: s.watch.WatchUpdate(utils.WatchSc),
+		DeleteFunc: s.watch.WatchDelete(utils.WatchSc),
+	})
 }
 
 func (s *StorageClass) ToBuildStorageClass(sc *v1.StorageClass) *BuildStorageClass {
 	if sc == nil {
 		return nil
 	}
+	bindMode := ""
+	if sc.VolumeBindingMode != nil {
+		bindMode = string(*sc.VolumeBindingMode)
+	}
 
 	pvData := &BuildStorageClass{
-		Name:          sc.Name,
-		CreateTime:    fmt.Sprint(sc.CreationTimestamp),
-		Provisioner:   sc.Provisioner,
-		ReclaimPolicy: sc.ReclaimPolicy,
+		UID:               string(sc.UID),
+		Name:              sc.Name,
+		CreateTime:        sc.CreationTimestamp,
+		Provisioner:       sc.Provisioner,
+		ReclaimPolicy:     sc.ReclaimPolicy,
+		VolumeBindingMode: bindMode,
 	}
 
 	return pvData
@@ -103,7 +122,6 @@ func (s *StorageClass) Get(requestParams interface{}) *utils.Response {
 			klog.Error(e)
 			return &utils.Response{Code: code.EncodeError, Msg: e.Error()}
 		}
-		klog.Info(d)
 		return &utils.Response{Code: code.Success, Msg: "Success", Data: string(d)}
 	}
 

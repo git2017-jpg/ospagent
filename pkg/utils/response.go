@@ -31,6 +31,9 @@ const (
 	WatchServiceAccount = "serviceAccount"
 	WatchRoleBinding    = "rolebinding"
 	WatchRole           = "role"
+	WatchPvc            = "pvc"
+	WatchPv             = "pv"
+	WatchSc             = "sc"
 )
 
 type Response struct {

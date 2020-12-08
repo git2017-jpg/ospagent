@@ -6,23 +6,24 @@ import (
 	"github.com/openspacee/ospagent/pkg/kubernetes"
 	"github.com/openspacee/ospagent/pkg/utils"
 	"github.com/openspacee/ospagent/pkg/utils/code"
-	"github.com/openspacee/ospagent/pkg/websocket"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 )
 
 type PersistentVolume struct {
 	*kubernetes.KubeClient
-	websocket.SendResponse
+	watch *WatchResource
 	*DynamicResource
 }
 
 type BuildPersistentVolume struct {
+	UID            string                           `json:"uid"`
 	Name           string                           `json:"name"`
 	Status         string                           `json:"status"`
 	Claim          string                           `json:"claim"`
@@ -34,16 +35,27 @@ type BuildPersistentVolume struct {
 	ReclaimPolicy  v1.PersistentVolumeReclaimPolicy `json:"reclaim_policy"`
 }
 
-func NewPersistentVolume(kubeClient *kubernetes.KubeClient, sendResponse websocket.SendResponse) *PersistentVolume {
-	return &PersistentVolume{
-		KubeClient:   kubeClient,
-		SendResponse: sendResponse,
+func NewPersistentVolume(kubeClient *kubernetes.KubeClient, watch *WatchResource) *PersistentVolume {
+	pv := &PersistentVolume{
+		KubeClient: kubeClient,
+		watch:      watch,
 		DynamicResource: NewDynamicResource(kubeClient, &schema.GroupVersionResource{
 			Group:    "",
 			Version:  "v1",
 			Resource: "persistentvolumes",
 		}),
 	}
+	pv.DoWatch()
+	return pv
+}
+
+func (p *PersistentVolume) DoWatch() {
+	informer := p.KubeClient.PersistentVolumeInformer().Informer()
+	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    p.watch.WatchAdd(utils.WatchPv),
+		UpdateFunc: p.watch.WatchUpdate(utils.WatchPv),
+		DeleteFunc: p.watch.WatchDelete(utils.WatchPv),
+	})
 }
 
 func (p *PersistentVolume) ToBuildPersistentVolume(pv *v1.PersistentVolume) *BuildPersistentVolume {
@@ -61,6 +73,7 @@ func (p *PersistentVolume) ToBuildPersistentVolume(pv *v1.PersistentVolume) *Bui
 		claimNamespace = pv.Spec.ClaimRef.Namespace
 	}
 	pvData := &BuildPersistentVolume{
+		UID:            string(pv.UID),
 		Name:           pv.Name,
 		Status:         string(pv.Status.Phase),
 		StorageClass:   pv.Spec.StorageClassName,
