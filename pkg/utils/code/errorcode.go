@@ -9,4 +9,5 @@ const (
 	DeleteError  = "DeleteError"
 	UpdateError  = "UpdateError"
 	EncodeError  = "EncodeError"
+	ApplyError   = "ApplyError"
 )

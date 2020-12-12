@@ -18,6 +18,7 @@ const (
 	STDIN      = "stdin"
 	OPENLOG    = "openLog"
 	CLOSELOG   = "closeLog"
+	APPLY      = "apply"
 )
 
 type Handler func(interface{}) *utils.Response
@@ -40,7 +41,8 @@ func NewResourceActions(kubeClient *kubernetes.KubeClient, sendResponse websocke
 
 	cluster := resource.NewCluster(kubeClient, watch)
 	clusterActions := ActionHandler{
-		GET: cluster.Get,
+		GET:   cluster.Get,
+		APPLY: cluster.ApplyYaml,
 	}
 	actionHandlers["cluster"] = clusterActions
 

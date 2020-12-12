@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	kube_client "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -14,6 +15,7 @@ type KubeClient struct {
 	Config        *rest.Config
 	//ListRegistry
 	InformerRegistry
+	*discovery.DiscoveryClient
 }
 
 func getKubeConfig(kubeConfigFile string) *rest.Config {
@@ -47,11 +49,13 @@ func NewKubeClient(kubeConfigFile string) *KubeClient {
 	if err != nil {
 		panic(err.Error())
 	}
+	dc, err := discovery.NewDiscoveryClientForConfig(config)
 	return &KubeClient{
 		ClientSet:     kubeClient,
 		DynamicClient: dynamicClient,
 		Config:        config,
 		//ListRegistry:     listRegistry,
 		InformerRegistry: informerRegistry,
+		DiscoveryClient:  dc,
 	}
 }

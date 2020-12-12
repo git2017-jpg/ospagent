@@ -100,6 +100,7 @@ func (ws *WebSocket) WriteResponse() {
 				respMsg, err := resp.Serializer()
 				if err != nil {
 					klog.Errorf("response %v serializer error: %s", resp, err)
+					continue
 				}
 				err = ws.Conn.WriteMessage(websocket.TextMessage, respMsg)
 				if err != nil {

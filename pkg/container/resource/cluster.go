@@ -14,25 +14,18 @@ import (
 type Cluster struct {
 	*kubernetes.KubeClient
 	watch *WatchResource
+	*DynamicResource
 }
 
 func NewCluster(kubeClient *kubernetes.KubeClient, watch *WatchResource) *Cluster {
 	c := &Cluster{
-		watch:      watch,
-		KubeClient: kubeClient,
+		watch:           watch,
+		KubeClient:      kubeClient,
+		DynamicResource: NewDynamicResource(kubeClient, nil),
 	}
 	//c.DoWatch()
 	return c
 }
-
-//func (c *Cluster) DoWatch() {
-//	informer := c.KubeClient.ClusterInformer().Informer()
-//	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-//		AddFunc:    c.watch.WatchAdd(utils.WatchCronjob),
-//		UpdateFunc: c.watch.WatchUpdate(utils.WatchCronjob),
-//		DeleteFunc: c.watch.WatchDelete(utils.WatchCronjob),
-//	})
-//}
 
 type BuildCluster struct {
 	ClusterVersion  string `json:"cluster_version"`
